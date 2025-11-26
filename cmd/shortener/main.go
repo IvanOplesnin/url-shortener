@@ -19,37 +19,37 @@ var urls = map[string]string{}
 func run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc(`POST /`, shortener)
-	mux.HandleFunc(`GET /{id}`, goToUrl)
+	mux.HandleFunc(`GET /{id}`, goToURL)
 
 	return http.ListenAndServe(`:8080`, mux)
 }
 
 func shortener(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost && r.Header.Get("Content-Type") == "text/plain" {
-		if content_type := r.Header.Get("Content-Type"); content_type != "text/plain" {
+		if contentType := r.Header.Get("Content-Type"); contentType != "text/plain" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		new_url, err := io.ReadAll(r.Body)
+		newUrl, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if s_url := getUrl(string(new_url)); s_url == "" {
+		if sUrl := getURL(string(newUrl)); sUrl == "" {
 			id := uuid.New().String()
-			urls[id] = string(new_url)
-			if _, err := w.Write([]byte(createUrl(id))); err != nil {
+			urls[id] = string(newUrl)
+			if _, err := w.Write([]byte(createURL(id))); err != nil {
 				return
 			}
 		} else {
-			if _, err := w.Write([]byte(createUrl(s_url))); err != nil {
+			if _, err := w.Write([]byte(createURL(sUrl))); err != nil {
 				return
 			}
 		}
 	}
 }
 
-func goToUrl(w http.ResponseWriter, r *http.Request) {
+func goToURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		id := strings.TrimPrefix(r.URL.Path, "/")
 		if url, ok := urls[id]; ok {
@@ -60,7 +60,7 @@ func goToUrl(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getUrl(url string) string {
+func getURL(url string) string {
 	for key, v := range urls {
 		if v == url {
 			return key
@@ -69,6 +69,6 @@ func getUrl(url string) string {
 	return ""
 }
 
-func createUrl(id string) string {
+func createURL(id string) string {
 	return "http://localhost:8080/" + id
 }
