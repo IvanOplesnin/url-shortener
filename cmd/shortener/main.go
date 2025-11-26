@@ -31,16 +31,16 @@ func shortener(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusCreated)
 		if sURL := getURL(string(newURL)); sURL == "" {
 			id := uuid.New().String()
 			urls[id] = string(newURL)
 			if _, err := w.Write([]byte(createURL(id))); err != nil {
-				w.WriteHeader(http.StatusCreated)
 				return
 			}
 		} else {
 			if _, err := w.Write([]byte(createURL(sURL))); err != nil {
-				w.WriteHeader(http.StatusCreated)
 				return
 			}
 		}
