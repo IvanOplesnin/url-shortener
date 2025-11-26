@@ -30,19 +30,19 @@ func shortener(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		newUrl, err := io.ReadAll(r.Body)
+		newURL, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if sUrl := getURL(string(newUrl)); sUrl == "" {
+		if sURL := getURL(string(newURL)); sURL == "" {
 			id := uuid.New().String()
-			urls[id] = string(newUrl)
+			urls[id] = string(newURL)
 			if _, err := w.Write([]byte(createURL(id))); err != nil {
 				return
 			}
 		} else {
-			if _, err := w.Write([]byte(createURL(sUrl))); err != nil {
+			if _, err := w.Write([]byte(createURL(sURL))); err != nil {
 				return
 			}
 		}
