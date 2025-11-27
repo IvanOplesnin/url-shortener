@@ -40,6 +40,7 @@ func (f *fakeStorage) Add(id st.ShortURL, u st.URL) error {
 func (f *fakeStorage) Get(id st.ShortURL) (st.URL, error) {
 	return "", errors.New("not implemented")
 }
+
 // TestShortenLinkHandler проверяет обработчик сокращения ссылок.
 //
 // Каждый тестовый случай проверяет:
@@ -137,11 +138,11 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "",
 			contentType: "text/plain",
-			storage: &fakeStorage{},
+			storage:     &fakeStorage{},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
-				bodyCheck: nil,
+				bodyCheck:   nil,
 				searchCalls: 0,
 				addCalls:    0,
 			},
@@ -151,11 +152,11 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "a,jshda\naslkjdgh7162//\\",
 			contentType: "text/plain",
-			storage: &fakeStorage{},
+			storage:     &fakeStorage{},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
-				bodyCheck: nil,
+				bodyCheck:   nil,
 				searchCalls: 0,
 				addCalls:    0,
 			},
@@ -165,11 +166,11 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "\n\r////",
 			contentType: "text/plain",
-			storage: &fakeStorage{},
+			storage:     &fakeStorage{},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
-				bodyCheck: nil,
+				bodyCheck:   nil,
 				searchCalls: 0,
 				addCalls:    0,
 			},
