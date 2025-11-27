@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,13 +20,17 @@ func InitHandlers(storage st.Storage, baseURL string) *http.ServeMux {
 func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && r.Header.Get("Content-Type") == "text/plain" {
+			w.Header().Set("Content-Type", "text/plain")
 			newURLRaw, err := io.ReadAll(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
+			if _, err := ParseURL(string(newURLRaw)); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			newURL := st.URL(newURLRaw)
-			w.Header().Set("Content-Type", "text/plain")
 			sURL, err := storage.Search(newURL)
 			switch err {
 			case nil:
@@ -70,4 +75,14 @@ func createURL(base string, id st.ShortURL) string {
 		return ""
 	}
 	return url
+}
+
+func ParseURL(urlRaw string) (st.URL, error) {
+	if urlRaw == "" {
+		return "", errors.New("empty Body")
+	}
+	if _, err := url.Parse(urlRaw); err != nil {
+		return "", err
+	}
+	return st.URL(urlRaw), nil
 }
