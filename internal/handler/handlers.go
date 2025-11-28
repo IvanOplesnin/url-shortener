@@ -7,14 +7,15 @@ import (
 	"net/url"
 
 	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
-func InitHandlers(storage st.Storage, baseURL string) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /", ShortenLinkHandler(storage, baseURL))
-	mux.HandleFunc("GET /{id}", RedirectHandler(storage))
-	return mux
+func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
+	router := chi.NewRouter()
+	router.Post("/", ShortenLinkHandler(storage, baseURL))
+	router.Get("/{id}", RedirectHandler(storage))
+	return router
 }
 
 func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
@@ -58,7 +59,7 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 func RedirectHandler(storage st.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			id := r.PathValue("id")
+			id := chi.URLParam(r, "id")
 			url, err := storage.Get(st.ShortURL(id))
 			if err != nil {
 				http.NotFound(w, r)
