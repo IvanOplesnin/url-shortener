@@ -13,8 +13,16 @@ import (
 
 func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 	router := chi.NewRouter()
+
+	baseP := basePath(baseURL)
+
 	router.Post("/", ShortenLinkHandler(storage, baseURL))
-	router.Get("/{id}", RedirectHandler(storage))
+
+	router.Route(
+		baseP, func(router chi.Router) {
+			router.Get("/{id}", RedirectHandler(storage))
+		})
+
 	return router
 }
 
@@ -86,4 +94,16 @@ func ParseURL(urlRaw string) (st.URL, error) {
 		return "", err
 	}
 	return st.URL(urlRaw), nil
+}
+
+func basePath(baseURL string) string {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		panic(err)
+	}
+	basePath := base.Path
+	if basePath == "" {
+		basePath = "/"
+	}
+	return basePath
 }

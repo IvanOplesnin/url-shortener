@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/IvanOplesnin/url-shortener/internal/config"
 	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
 	inmemory "github.com/IvanOplesnin/url-shortener/internal/repository/in_memory"
 )
@@ -14,8 +15,9 @@ func main() {
 }
 
 func run() error {
-	baseURL := `http://localhost:8080/`
+	cfg := config.ParseFlags()
+	baseURL := cfg.BaseURL
 	storage := inmemory.NewStorage()
 	mux := handlers.InitHandlers(storage, baseURL)
-	return http.ListenAndServe(`:8080`, mux)
+	return http.ListenAndServe(cfg.String(), mux)
 }
