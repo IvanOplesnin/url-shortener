@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,8 +15,12 @@ type fakeStorage struct {
 
 	addErr error
 
+	getResult st.URL
+	getErr    error
+
 	searchCalls int
 	addCalls    int
+	getCalls    int
 
 	lastSearchURL st.URL
 	lastAddID     st.ShortURL
@@ -38,7 +41,8 @@ func (f *fakeStorage) Add(id st.ShortURL, u st.URL) error {
 }
 
 func (f *fakeStorage) Get(id st.ShortURL) (st.URL, error) {
-	return "", errors.New("not implemented")
+	f.getCalls++
+	return f.getResult, f.getErr
 }
 
 // TestShortenLinkHandler тестирует HTTP-обработчик создания короткой ссылки.
@@ -81,6 +85,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			storage: &fakeStorage{
 				searchErr: st.ErrNotFoundURL, // Имитация: ссылка не найдена при поиске
 				addErr:    nil,               // Добавление проходит успешно
+				getErr:    st.ErrNotFoundShortURL,
 			},
 			want: want{
 				statusCode:  http.StatusCreated,
@@ -110,7 +115,7 @@ func TestShortenLinkHandler(t *testing.T) {
 				contentType: "text/plain",
 				bodyCheck: func(t *testing.T, body string) {
 					// Ожидается полный URL: baseURL + "/abc123"
-					expected := createURL(baseURL, st.ShortURL("abc123"))
+					expected, _ := createURL(baseURL, st.ShortURL("abc123"))
 					if body != expected {
 						t.Fatalf("expected body %q, got %q", expected, body)
 					}
@@ -207,6 +212,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			// Проверка: совпадает ли код ответа с ожидаемым
 			if rr.Code != tt.want.statusCode {
 				t.Errorf("expected status %d, got %d", tt.want.statusCode, rr.Code)
+				return
 			}
 
 			// Проверка заголовка Content-Type, если он ожидается
@@ -214,6 +220,7 @@ func TestShortenLinkHandler(t *testing.T) {
 				ct := rr.Header().Get("Content-Type")
 				if ct != tt.want.contentType {
 					t.Errorf("expected Content-Type %q, got %q", tt.want.contentType, ct)
+					return
 				}
 			}
 
@@ -225,11 +232,13 @@ func TestShortenLinkHandler(t *testing.T) {
 			// Проверка количества вызовов метода Search хранилища
 			if tt.storage.searchCalls != tt.want.searchCalls {
 				t.Errorf("expected Search calls %d, got %d", tt.want.searchCalls, tt.storage.searchCalls)
+				return
 			}
 
 			// Проверка количества вызовов метода Add хранилища
 			if tt.storage.addCalls != tt.want.addCalls {
 				t.Errorf("expected Add calls %d, got %d", tt.want.addCalls, tt.storage.addCalls)
+				return
 			}
 		})
 	}

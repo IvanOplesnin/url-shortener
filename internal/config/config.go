@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -57,7 +56,7 @@ type Config struct {
 	BaseURL string
 }
 
-func ParseFlags() Config {
+func ParseFlags() (*Config, error) {
 	cfg := Config{}
 	server := Server{
 		Host: "localhost",
@@ -70,18 +69,17 @@ func ParseFlags() Config {
 
 	u, err := url.Parse(cfg.BaseURL)
 	if err != nil {
-		log.Fatalf("invalid BaseURL %q: %v", cfg.BaseURL, err)
+		return nil, fmt.Errorf("invalid BaseURL %q: %v", cfg.BaseURL, err)
 	}
 	if u.Scheme == "" || u.Host == "" {
-		log.Fatalf("invalid BaseURL %q: must include scheme and host, e.g. http://localhost:8080/", cfg.BaseURL)
+		return nil, fmt.Errorf("invalid BaseURL %q: must include scheme and host, e.g. http://localhost:8080/", cfg.BaseURL)
 	}
 
 	urlHost := u.Hostname()
 	urlPortStr := u.Port()
-	
 
 	if urlPortStr == "" {
-		log.Fatalf(
+		return nil, fmt.Errorf(
 			"invalid BaseURL %q: port must be specified explicitly, e.g. http://%s:%d/",
 			cfg.BaseURL, cfg.Server.Host, cfg.Server.Port,
 		)
@@ -89,15 +87,15 @@ func ParseFlags() Config {
 
 	urlPort, err := strconv.Atoi(urlPortStr)
 	if err != nil {
-		log.Fatalf("invalid BaseURL %q: bad port %q: %v", cfg.BaseURL, urlPortStr, err)
+		return nil, fmt.Errorf("invalid BaseURL %q: bad port %q: %v", cfg.BaseURL, urlPortStr, err)
 	}
 
 	if urlHost != cfg.Server.Host || urlPort != cfg.Server.Port {
-		log.Fatalf(
+		return nil, fmt.Errorf(
 			"BaseURL %q does not match server address %s:%d; they must point to the same host and port",
 			cfg.BaseURL, cfg.Server.Host, cfg.Server.Port,
 		)
 	}
 
-	return cfg
+	return &cfg, nil
 }

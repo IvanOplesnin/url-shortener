@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/config"
@@ -10,12 +11,15 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		panic(err)
+		log.Fatalf("server run error:%v", err)
 	}
 }
 
 func run() error {
-	cfg := config.ParseFlags()
+	cfg, err := config.ParseFlags()
+	if err != nil {
+		return err
+	}
 	baseURL := cfg.BaseURL
 	storage := inmemory.NewStorage()
 	mux := handlers.InitHandlers(storage, baseURL)

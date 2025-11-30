@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 
 	st "github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 )
 
 func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
@@ -28,14 +31,14 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 
 func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.Header.Get("Content-Type") == "text/plain" {
+		if r.Header.Get("Content-Type") == "text/plain" {
 			w.Header().Set("Content-Type", "text/plain")
 			newURLRaw, err := io.ReadAll(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if _, err := ParseURL(string(newURLRaw)); err != nil {
+			if _, err := parseURL(string(newURLRaw)); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -43,24 +46,36 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 			sURL, err := storage.Search(newURL)
 			switch err {
 			case nil:
-				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte(createURL(baseURL, sURL)))
-			case st.ErrNotFoundURL:
-				id := st.ShortURL(uuid.New().String())
-				err := storage.Add(id, newURL)
+				body, err := createURL(baseURL, sURL)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte(createURL(baseURL, id)))
+				w.Write([]byte(body))
+			case st.ErrNotFoundURL:
+				newPath, err := randomString(storage)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				if err := storage.Add(st.ShortURL(newPath), newURL); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				body, err := createURL(baseURL, st.ShortURL(newPath))
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusCreated)
+				w.Write([]byte(body))
 			default:
 				w.WriteHeader(http.StatusBadRequest)
 			}
 			return
-		} else if r.Header.Get("Content-Type") != "text/plain" && r.Method == http.MethodPost {
-			w.WriteHeader(http.StatusBadRequest)
 		}
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
@@ -78,20 +93,20 @@ func RedirectHandler(storage st.Storage) http.HandlerFunc {
 	}
 }
 
-func createURL(base string, id st.ShortURL) string {
+func createURL(base string, id st.ShortURL) (string, error) {
 	url, err := url.JoinPath(base, string(id))
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("error createUrl: %w", err)
 	}
-	return url
+	return url, nil
 }
 
-func ParseURL(urlRaw string) (st.URL, error) {
+func parseURL(urlRaw string) (st.URL, error) {
 	if urlRaw == "" {
-		return "", errors.New("empty Body")
+		return "", fmt.Errorf("empty body")
 	}
 	if _, err := url.Parse(urlRaw); err != nil {
-		return "", err
+		return "", fmt.Errorf("error parseUrl: %w", err)
 	}
 	return st.URL(urlRaw), nil
 }
@@ -99,11 +114,28 @@ func ParseURL(urlRaw string) (st.URL, error) {
 func basePath(baseURL string) string {
 	base, err := url.Parse(baseURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error base path: %v", err)
 	}
 	basePath := base.Path
 	if basePath == "" {
 		basePath = "/"
 	}
 	return basePath
+}
+
+func randomString(storage st.Storage) (string, error) {
+	lettrs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, 6)
+	count := 0
+	for err := errors.New(""); !errors.Is(err, st.ErrNotFoundShortURL) && count < 6; count++ {
+		for i := range b {
+			b[i] = lettrs[r.Intn(len(lettrs))]
+		}
+		_, err = storage.Get(st.ShortURL(b))
+	}
+	if count == 6 {
+		return "", fmt.Errorf("error randomString: Can't generate random string")
+	}
+	return string(b), nil
 }
