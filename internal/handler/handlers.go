@@ -133,12 +133,10 @@ func addRandomString(storage st.Storage, url st.URL) (st.ShortURL, error) {
 		if err == nil {
 			return st.ShortURL(string(b)), nil
 		}
-		if errors.Is(err ,st.ErrShortURLAlreadyExists) {
+		if errors.Is(err, st.ErrShortURLAlreadyExists) {
 			continue
 		}
-		if err != nil {
-			return "", fmt.Errorf("error addRandomString: %w", err)
-		}
+		return "", fmt.Errorf("error addRandomString: %w", err)
 	}
 
 	return "", fmt.Errorf("error addRandomString: Can't generate random string")
