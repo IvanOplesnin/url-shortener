@@ -7,43 +7,9 @@ import (
 	"testing"
 
 	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	mock_storage "github.com/IvanOplesnin/url-shortener/internal/repository/mock"
+	"go.uber.org/mock/gomock"
 )
-
-type fakeStorage struct {
-	searchResult st.ShortURL
-	searchErr    error
-
-	addErr error
-
-	getResult st.URL
-	getErr    error
-
-	searchCalls int
-	addCalls    int
-	getCalls    int
-
-	lastSearchURL st.URL
-	lastAddID     st.ShortURL
-	lastAddURL    st.URL
-}
-
-func (f *fakeStorage) Search(u st.URL) (st.ShortURL, error) {
-	f.searchCalls++
-	f.lastSearchURL = u
-	return f.searchResult, f.searchErr
-}
-
-func (f *fakeStorage) Add(id st.ShortURL, u st.URL) error {
-	f.addCalls++
-	f.lastAddID = id
-	f.lastAddURL = u
-	return f.addErr
-}
-
-func (f *fakeStorage) Get(id st.ShortURL) (st.URL, error) {
-	f.getCalls++
-	return f.getResult, f.getErr
-}
 
 // TestShortenLinkHandler тестирует HTTP-обработчик создания короткой ссылки.
 //
@@ -63,18 +29,16 @@ func TestShortenLinkHandler(t *testing.T) {
 		statusCode  int                             // Ожидаемый HTTP-статус
 		contentType string                          // Ожидаемый заголовок Content-Type
 		bodyCheck   func(t *testing.T, body string) // Функция для проверки тела ответа
-		searchCalls int                             // Сколько раз должен быть вызван Search
-		addCalls    int                             // Сколько раз должен быть вызван Add
 	}
 
 	// Определение тестовых сценариев
 	tests := []struct {
-		name        string       // Название теста — описывает сценарий
-		method      string       // HTTP-метод запроса
-		body        string       // Тело запроса (исходная ссылка или некорректные данные)
-		contentType string       // Content-Type запроса
-		storage     *fakeStorage // Мок-хранилище с предустановленным поведением
-		want        want         // Ожидаемые результаты
+		name        string                            // Название теста — описывает сценарий
+		method      string                            // HTTP-метод запроса
+		body        string                            // Тело запроса (исходная ссылка или некорректные данные)
+		contentType string                            // Content-Type запроса
+		setupMock   func(m *mock_storage.MockStorage) //
+		want        want                              // Ожидаемые результаты
 	}{
 		// Сценарий 1: новая ссылка, отсутствует в хранилище
 		{
@@ -82,10 +46,16 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "text/plain",
-			storage: &fakeStorage{
-				searchErr: st.ErrNotFoundURL, // Имитация: ссылка не найдена при поиске
-				addErr:    nil,               // Добавление проходит успешно
-				getErr:    st.ErrNotFoundShortURL,
+			setupMock: func(m *mock_storage.MockStorage) {
+				m.EXPECT().
+					Search(st.URL("https://google.com")).
+					Return(st.ShortURL(""), st.ErrNotFoundURL).
+					Times(1)
+
+				m.EXPECT().
+					Add(gomock.Any(), st.URL("https://google.com")).
+					Return(nil).
+					Times(1)
 			},
 			want: want{
 				statusCode:  http.StatusCreated,
@@ -96,8 +66,6 @@ func TestShortenLinkHandler(t *testing.T) {
 						t.Fatalf("expected body to start with %q, got %q", baseURL+"/", body)
 					}
 				},
-				searchCalls: 1, // Search должен быть вызван один раз
-				addCalls:    1, // Add должен быть вызван для сохранения новой ссылки
 			},
 		},
 		// Сценарий 2: ссылка уже существует в хранилище
@@ -106,9 +74,15 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "text/plain",
-			storage: &fakeStorage{
-				searchResult: st.ShortURL("abc123"), // Возвращается существующий ID
-				searchErr:    nil,                   // Поиск успешен
+			setupMock: func(m *mock_storage.MockStorage) {
+				m.EXPECT().
+					Search(st.URL("https://google.com")).
+					Return(st.ShortURL("abc123"), nil).
+					Times(1)
+
+				m.EXPECT().
+					Add(gomock.Any(), gomock.Any()).
+					Times(0)
 			},
 			want: want{
 				statusCode:  http.StatusCreated,
@@ -120,8 +94,6 @@ func TestShortenLinkHandler(t *testing.T) {
 						t.Fatalf("expected body %q, got %q", expected, body)
 					}
 				},
-				searchCalls: 1, // Search вызван один раз
-				addCalls:    0, // Add не вызывается — дублирование не требуется
 			},
 		},
 		// Сценарий 3: неверный тип содержимого
@@ -130,7 +102,10 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "application/json", // Неподдерживаемый Content-Type
-			storage:     &fakeStorage{},
+			setupMock: func(m *mock_storage.MockStorage) {
+				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Search(gomock.Any()).Times(0)
+			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "",
@@ -140,8 +115,6 @@ func TestShortenLinkHandler(t *testing.T) {
 						t.Fatalf("expected empty body, got %q", body)
 					}
 				},
-				searchCalls: 0, // Search не должен вызываться
-				addCalls:    0, // Add не должен вызываться
 			},
 		},
 		// Сценарий 4: пустое тело запроса
@@ -150,13 +123,14 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "",
 			contentType: "text/plain",
-			storage:     &fakeStorage{},
+			setupMock: func(m *mock_storage.MockStorage) {
+				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Search(gomock.Any()).Times(0)
+			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
 				bodyCheck:   nil, // Проверка тела не требуется — достаточно статуса
-				searchCalls: 0,
-				addCalls:    0,
 			},
 		},
 		// Сценарий 5: тело с битыми символами (не URL)
@@ -165,13 +139,14 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "a,jshda\naslkjdgh7162//\\",
 			contentType: "text/plain",
-			storage:     &fakeStorage{},
+			setupMock: func(m *mock_storage.MockStorage) {
+				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Search(gomock.Any()).Times(0)
+			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
 				bodyCheck:   nil,
-				searchCalls: 0,
-				addCalls:    0,
 			},
 		},
 		// Сценарий 6: тело с невалидными символами
@@ -180,13 +155,11 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "\n\r////",
 			contentType: "text/plain",
-			storage:     &fakeStorage{},
+			setupMock:   nil,
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				contentType: "text/plain",
 				bodyCheck:   nil,
-				searchCalls: 0,
-				addCalls:    0,
 			},
 		},
 	}
@@ -194,6 +167,15 @@ func TestShortenLinkHandler(t *testing.T) {
 	// Выполнение каждого тестового случая
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			storage := mock_storage.NewMockStorage(ctrl)
+
+			if tt.setupMock != nil {
+				tt.setupMock(storage)
+			}
+
 			// Создание HTTP-запроса с заданным методом и телом
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.body))
 			// Установка заголовка Content-Type, если он задан
@@ -205,7 +187,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Инициализация обработчика с моком хранилища и базовым URL
-			h := ShortenLinkHandler(tt.storage, baseURL)
+			h := ShortenLinkHandler(storage, baseURL)
 			// Обработка запроса
 			h.ServeHTTP(rr, req)
 
@@ -227,18 +209,6 @@ func TestShortenLinkHandler(t *testing.T) {
 			// Проверка тела ответа, если задана функция bodyCheck
 			if tt.want.bodyCheck != nil {
 				tt.want.bodyCheck(t, rr.Body.String())
-			}
-
-			// Проверка количества вызовов метода Search хранилища
-			if tt.storage.searchCalls != tt.want.searchCalls {
-				t.Errorf("expected Search calls %d, got %d", tt.want.searchCalls, tt.storage.searchCalls)
-				return
-			}
-
-			// Проверка количества вызовов метода Add хранилища
-			if tt.storage.addCalls != tt.want.addCalls {
-				t.Errorf("expected Add calls %d, got %d", tt.want.addCalls, tt.storage.addCalls)
-				return
 			}
 		})
 	}

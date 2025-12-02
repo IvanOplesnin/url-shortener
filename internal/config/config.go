@@ -8,10 +8,7 @@ import (
 	"strings"
 )
 
-const (
-	baseURLFlagUsage = `Base URL, e.g. "http://localhost:8080/"`
-	serverFlagUsage  = `Server address in form "host:port"`
-)
+
 
 type Server struct {
 	Port int
@@ -57,6 +54,12 @@ type Config struct {
 }
 
 func ParseFlags() (*Config, error) {
+	const (
+		baseURLFlagUsage = `Base URL, e.g. "http://localhost:8080/"`
+		serverFlagUsage  = `Server address in form "host:port"`
+	)
+
+
 	cfg := Config{}
 	server := Server{
 		Host: "localhost",

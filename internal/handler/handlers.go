@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -54,16 +53,12 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte(body))
 			case st.ErrNotFoundURL:
-				newPath, err := randomString(storage)
+				newPath, err := addRandomString(storage, st.URL(newURL))
 				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				if err := storage.Add(st.ShortURL(newPath), newURL); err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
-				body, err := createURL(baseURL, st.ShortURL(newPath))
+				body, err := createURL(baseURL, newPath)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -123,19 +118,21 @@ func basePath(baseURL string) string {
 	return basePath
 }
 
-func randomString(storage st.Storage) (string, error) {
+func addRandomString(storage st.Storage, url st.URL) (st.ShortURL, error) {
+	const retry = 6
+
 	lettrs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	b := make([]byte, 6)
-	count := 0
-	for err := errors.New(""); !errors.Is(err, st.ErrNotFoundShortURL) && count < 6; count++ {
+	for count := 0; count < retry; count++ {
 		for i := range b {
 			b[i] = lettrs[r.Intn(len(lettrs))]
 		}
-		_, err = storage.Get(st.ShortURL(b))
+		err := storage.Add(st.ShortURL(b), url)
+		if err == nil {
+			return st.ShortURL(string(b)), nil
+		}
 	}
-	if count == 6 {
-		return "", fmt.Errorf("error randomString: Can't generate random string")
-	}
-	return string(b), nil
+
+	return "", fmt.Errorf("error addRandomString: Can't generate random string")
 }

@@ -27,14 +27,14 @@ func (s *Storage) Get(shortURL st.ShortURL) (st.URL, error) {
 
 func (s *Storage) Add(shortURL st.ShortURL, url st.URL) error {
 	if _, ok := s.dataShort[shortURL]; ok {
-		return fmt.Errorf("%w: %v", st.ErrAlreadyExists, shortURL)
-	} else if _, ok := s.dataURL[url]; ok {
-		return fmt.Errorf("%w: %v", st.ErrAlreadyExists, url)
-	} else {
-		s.dataShort[shortURL] = url
-		s.dataURL[url] = shortURL
-		return nil
+		return fmt.Errorf("%w: %v", st.ErrShortURLAlreadyExists, shortURL)
 	}
+	if _, ok := s.dataURL[url]; ok {
+		return fmt.Errorf("%w: %v", st.ErrAlreadyExists, url)
+	}
+	s.dataShort[shortURL] = url
+	s.dataURL[url] = shortURL
+	return nil
 }
 
 func (s *Storage) Search(url st.URL) (st.ShortURL, error) {

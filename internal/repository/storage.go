@@ -9,7 +9,8 @@ type URL string
 
 var ErrNotFoundShortURL = errors.New("not found shortURL")
 var ErrNotFoundURL = errors.New("not found URL")
-var ErrAlreadyExists = errors.New("already exists shortURL")
+var ErrAlreadyExists = errors.New("already exists URL")
+var ErrShortURLAlreadyExists = errors.New("already exist ShortURL")
 
 
 type Storage interface {
