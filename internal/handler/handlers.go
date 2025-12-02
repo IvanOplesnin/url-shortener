@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -131,6 +132,12 @@ func addRandomString(storage st.Storage, url st.URL) (st.ShortURL, error) {
 		err := storage.Add(st.ShortURL(b), url)
 		if err == nil {
 			return st.ShortURL(string(b)), nil
+		}
+		if errors.Is(err ,st.ErrShortURLAlreadyExists) {
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("error addRandomString: %w", err)
 		}
 	}
 
