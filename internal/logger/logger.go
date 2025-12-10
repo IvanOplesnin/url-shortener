@@ -12,7 +12,7 @@ type Formatter string
 
 const (
 	Text Formatter = "text"
-	Json Formatter = "json"
+	JSON Formatter = "json"
 )
 
 var Log = logrus.New()
@@ -45,7 +45,7 @@ func getFormatter(format Formatter) (logrus.Formatter, error) {
 		return &logrus.TextFormatter{
 			FullTimestamp: true,
 		}, nil
-	case Json:
+	case JSON:
 		return &logrus.JSONFormatter{}, nil
 	default:
 		// Фолбэк по умолчанию, если формат неизвестен

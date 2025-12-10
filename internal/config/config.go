@@ -72,10 +72,10 @@ type Config struct {
 
 func (c *Config) String() string {
 	server := fmt.Sprintf("Server=%s", &c.Server)
-	baseUrl := fmt.Sprintf("BaseURl=%s", c.BaseURL)
+	baseURL := fmt.Sprintf("BaseURl=%s", c.BaseURL)
 	logLevel := fmt.Sprintf("LogLevel=%s", c.Logger.Level)
 	logFormat := fmt.Sprintf("LogFormat=%s", c.Logger.Format)
-	return strings.Join([]string{server, baseUrl, logLevel, logFormat}, "; ") + "\n"
+	return strings.Join([]string{server, baseURL, logLevel, logFormat}, "; ") + "\n"
 }
 
 func GetConfig() (*Config, error) {
