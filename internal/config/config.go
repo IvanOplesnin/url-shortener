@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	ADDRESS_KEY = "SERVER_ADDRESS"
-	BASEURL_KEY = "BASE_URL"
+	AddressKEY = "SERVER_ADDRESS"
+	BaseURLKEY = "BASE_URL"
 )
 
 type Server struct {
@@ -73,7 +73,7 @@ func GetConfig() (*Config, error) {
 		Port: 8080,
 	}
 
-	serverAddress, ok := os.LookupEnv(ADDRESS_KEY)
+	serverAddress, ok := os.LookupEnv(AddressKEY)
 	if ok {
 		err := server.UnmarshalText([]byte(serverAddress))
 		if err != nil {
@@ -83,11 +83,11 @@ func GetConfig() (*Config, error) {
 		flag.Var(&server, "a", serverFlagUsage)
 	}
 
-	baseUrl, ok := os.LookupEnv(BASEURL_KEY)
+	baseURL, ok := os.LookupEnv(BaseURLKEY)
 	if !ok {
 		flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080/", baseURLFlagUsage)
 	} else {
-		cfg.BaseURL = baseUrl
+		cfg.BaseURL = baseURL
 	}
 
 	flag.Parse()
