@@ -72,6 +72,7 @@ func GetConfig() (*Config, error) {
 		Host: "localhost",
 		Port: 8080,
 	}
+	cfg.BaseURL = "http://localhost:8080/"
 
 	flag.Var(&server, "a", serverFlagUsage)
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
