@@ -16,7 +16,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.ParseFlags()
+	cfg, err := config.GetConfig()
 	if err != nil {
 		return err
 	}

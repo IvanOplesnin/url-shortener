@@ -4,11 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
 
-
+const (
+	ADDRESS_KEY = "SERVER_ADDRESS"
+	BASEURL_KEY = "BASE_URL"
+)
 
 type Server struct {
 	Port int
@@ -48,25 +52,44 @@ func (s *Server) Set(flagValue string) error {
 	return nil
 }
 
-type Config struct {
-	Server
-	BaseURL string
+func (s *Server) UnmarshalText(t []byte) error {
+	return s.Set(string(t))
 }
 
-func ParseFlags() (*Config, error) {
+type Config struct {
+	Server  `env:"SERVER_ADDRESS"`
+	BaseURL string `env:"BASE_URL"`
+}
+
+func GetConfig() (*Config, error) {
 	const (
 		baseURLFlagUsage = `Base URL, e.g. "http://localhost:8080/"`
 		serverFlagUsage  = `Server address in form "host:port"`
 	)
-
 
 	cfg := Config{}
 	server := Server{
 		Host: "localhost",
 		Port: 8080,
 	}
-	flag.Var(&server, "a", serverFlagUsage)
-	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080/", baseURLFlagUsage)
+
+	serverAddress, ok := os.LookupEnv(ADDRESS_KEY)
+	if ok {
+		err := server.UnmarshalText([]byte(serverAddress))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		flag.Var(&server, "a", serverFlagUsage)
+	}
+
+	baseUrl, ok := os.LookupEnv(BASEURL_KEY)
+	if !ok {
+		flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080/", baseURLFlagUsage)
+	} else {
+		cfg.BaseURL = baseUrl
+	}
+
 	flag.Parse()
 	cfg.Server = server
 
