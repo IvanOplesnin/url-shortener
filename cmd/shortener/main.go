@@ -6,6 +6,7 @@ import (
 
 	"github.com/IvanOplesnin/url-shortener/internal/config"
 	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	inmemory "github.com/IvanOplesnin/url-shortener/internal/repository/in_memory"
 )
 
@@ -20,8 +21,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	err = logger.SetupLogger(cfg.Logger.Level, cfg.Logger.Format)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	baseURL := cfg.BaseURL
 	storage := inmemory.NewStorage()
 	mux := handlers.InitHandlers(storage, baseURL)
-	return http.ListenAndServe(cfg.String(), mux)
+	return http.ListenAndServe(cfg.Server.String(), mux)
 }

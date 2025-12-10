@@ -3,10 +3,13 @@ package config
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 )
 
 const (
@@ -56,9 +59,23 @@ func (s *Server) UnmarshalText(t []byte) error {
 	return s.Set(string(t))
 }
 
+type Logger struct {
+	Level  string           `env:"LOG_LEVEL"`
+	Format logger.Formatter `env:"LOG_FORMAT"`
+}
+
 type Config struct {
-	Server  `env:"SERVER_ADDRESS"`
+	Server  Server `env:"SERVER_ADDRESS"`
 	BaseURL string `env:"BASE_URL"`
+	Logger  Logger
+}
+
+func (c *Config) String() string {
+	server := fmt.Sprintf("Server=%s", &c.Server)
+	baseUrl := fmt.Sprintf("BaseURl=%s", c.BaseURL)
+	logLevel := fmt.Sprintf("LogLevel=%s", c.Logger.Level)
+	logFormat := fmt.Sprintf("LogFormat=%s", c.Logger.Format)
+	return strings.Join([]string{server, baseUrl, logLevel, logFormat}, "; ") + "\n"
 }
 
 func GetConfig() (*Config, error) {
@@ -66,13 +83,14 @@ func GetConfig() (*Config, error) {
 		baseURLFlagUsage = `Base URL, e.g. "http://localhost:8080/"`
 		serverFlagUsage  = `Server address in form "host:port"`
 	)
-
 	cfg := Config{}
 	server := Server{
 		Host: "localhost",
 		Port: 8080,
 	}
 	cfg.BaseURL = "http://localhost:8080/"
+	cfg.Logger.Level = "Info"
+	cfg.Logger.Format = logger.Text
 
 	flag.Var(&server, "a", serverFlagUsage)
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
@@ -121,5 +139,6 @@ func GetConfig() (*Config, error) {
 		)
 	}
 
+	log.Printf("GetConfig: %s", &cfg)
 	return &cfg, nil
 }

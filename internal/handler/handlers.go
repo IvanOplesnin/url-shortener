@@ -19,6 +19,8 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 
 	baseP := basePath(baseURL)
 
+	router.Use(WithLogging)
+
 	router.Post("/", ShortenLinkHandler(storage, baseURL))
 
 	router.Route(
