@@ -73,24 +73,21 @@ func GetConfig() (*Config, error) {
 		Port: 8080,
 	}
 
-	serverAddress, ok := os.LookupEnv(AddressKEY)
-	if !ok || serverAddress == "" {
-		flag.Var(&server, "a", serverFlagUsage)
-	} else {
-		err := server.UnmarshalText([]byte(serverAddress))
-		if err != nil {
+	flag.Var(&server, "a", serverFlagUsage)
+	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
+
+	flag.Parse()
+
+	if serverAddress, ok := os.LookupEnv(AddressKEY); ok {
+		if err := server.UnmarshalText([]byte(serverAddress)); err != nil {
 			return nil, err
 		}
 	}
 
-	baseURL, ok := os.LookupEnv(BaseURLKEY)
-	if !ok || baseURL == "" {
-		flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080/", baseURLFlagUsage)
-	} else {
+	if baseURL, ok := os.LookupEnv(BaseURLKEY); ok {
 		cfg.BaseURL = baseURL
 	}
 
-	flag.Parse()
 	cfg.Server = server
 
 	u, err := url.Parse(cfg.BaseURL)
