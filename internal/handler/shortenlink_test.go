@@ -8,6 +8,7 @@ import (
 
 	st "github.com/IvanOplesnin/url-shortener/internal/repository"
 	mock_storage "github.com/IvanOplesnin/url-shortener/internal/repository/mock"
+	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"go.uber.org/mock/gomock"
 )
 
@@ -89,7 +90,7 @@ func TestShortenLinkHandler(t *testing.T) {
 				contentType: "text/plain",
 				bodyCheck: func(t *testing.T, body string) {
 					// Ожидается полный URL: baseURL + "/abc123"
-					expected, _ := createURL(baseURL, st.ShortURL("abc123"))
+					expected, _ := u.CreateURL(baseURL, st.ShortURL("abc123"))
 					if body != expected {
 						t.Fatalf("expected body %q, got %q", expected, body)
 					}

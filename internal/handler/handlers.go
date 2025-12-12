@@ -1,27 +1,29 @@
 package handlers
 
 import (
-	"errors"
-	"fmt"
 	"io"
-	"log"
-	"math/rand"
 	"net/http"
-	"net/url"
-	"time"
 
 	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"github.com/go-chi/chi/v5"
+)
+
+const (
+	contentTypeKey       = "Content-Type"
+	applicationJSONValue = "application/json"
+	textPlainValue       = "text/plain"
 )
 
 func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 	router := chi.NewRouter()
 
-	baseP := basePath(baseURL)
+	baseP := u.BasePath(baseURL)
 
 	router.Use(WithLogging)
 
 	router.Post("/", ShortenLinkHandler(storage, baseURL))
+	router.Post("/api/shorten", ShortenApiHandler(storage, baseURL))
 
 	router.Route(
 		baseP, func(router chi.Router) {
@@ -33,14 +35,15 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 
 func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Content-Type") == "text/plain" {
-			w.Header().Set("Content-Type", "text/plain")
+		if r.Header.Get(contentTypeKey) == textPlainValue {
+			w.Header().Set(contentTypeKey, textPlainValue)
 			newURLRaw, err := io.ReadAll(r.Body)
+			defer r.Body.Close()
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if _, err := parseURL(string(newURLRaw)); err != nil {
+			if _, err := u.ParseURL(string(newURLRaw)); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -48,7 +51,7 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 			sURL, err := storage.Search(newURL)
 			switch err {
 			case nil:
-				body, err := createURL(baseURL, sURL)
+				body, err := u.CreateURL(baseURL, sURL)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -56,12 +59,12 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte(body))
 			case st.ErrNotFoundURL:
-				newPath, err := addRandomString(storage, st.URL(newURL))
+				newPath, err := u.AddRandomString(storage, st.URL(newURL))
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
-				body, err := createURL(baseURL, newPath)
+				body, err := u.CreateURL(baseURL, newPath)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -89,57 +92,4 @@ func RedirectHandler(storage st.Storage) http.HandlerFunc {
 			http.Redirect(w, r, string(url), http.StatusTemporaryRedirect)
 		}
 	}
-}
-
-func createURL(base string, id st.ShortURL) (string, error) {
-	url, err := url.JoinPath(base, string(id))
-	if err != nil {
-		return "", fmt.Errorf("error createUrl: %w", err)
-	}
-	return url, nil
-}
-
-func parseURL(urlRaw string) (st.URL, error) {
-	if urlRaw == "" {
-		return "", fmt.Errorf("empty body")
-	}
-	if _, err := url.Parse(urlRaw); err != nil {
-		return "", fmt.Errorf("error parseUrl: %w", err)
-	}
-	return st.URL(urlRaw), nil
-}
-
-func basePath(baseURL string) string {
-	base, err := url.Parse(baseURL)
-	if err != nil {
-		log.Fatalf("error base path: %v", err)
-	}
-	basePath := base.Path
-	if basePath == "" {
-		basePath = "/"
-	}
-	return basePath
-}
-
-func addRandomString(storage st.Storage, url st.URL) (st.ShortURL, error) {
-	const retry = 6
-
-	lettrs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, 6)
-	for count := 0; count < retry; count++ {
-		for i := range b {
-			b[i] = lettrs[r.Intn(len(lettrs))]
-		}
-		err := storage.Add(st.ShortURL(b), url)
-		if err == nil {
-			return st.ShortURL(string(b)), nil
-		}
-		if errors.Is(err, st.ErrShortURLAlreadyExists) {
-			continue
-		}
-		return "", fmt.Errorf("error addRandomString: %w", err)
-	}
-
-	return "", fmt.Errorf("error addRandomString: Can't generate random string")
 }
