@@ -10,7 +10,7 @@ import (
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 )
 
-func ShortenApiHandler(storage st.Storage, baseURL string) http.HandlerFunc {
+func ShortenAPIHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) == applicationJSONValue {
 			w.Header().Set(contentTypeKey, applicationJSONValue)

@@ -23,7 +23,7 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 	router.Use(WithLogging)
 
 	router.Post("/", ShortenLinkHandler(storage, baseURL))
-	router.Post("/api/shorten", ShortenApiHandler(storage, baseURL))
+	router.Post("/api/shorten", ShortenAPIHandler(storage, baseURL))
 
 	router.Route(
 		baseP, func(router chi.Router) {

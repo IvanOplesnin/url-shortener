@@ -200,7 +200,7 @@ func TestShortenApiHandler(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 
-			h := ShortenApiHandler(storage, baseURL)
+			h := ShortenAPIHandler(storage, baseURL)
 
 			h.ServeHTTP(rr, req)
 
