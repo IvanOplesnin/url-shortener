@@ -25,11 +25,11 @@ func ShortenAPIHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if _, err := u.ParseURL(string(reqBody.Url)); err != nil {
+			if _, err := u.ParseURL(string(reqBody.URL)); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			sURL, err := storage.Search(reqBody.Url)
+			sURL, err := storage.Search(reqBody.URL)
 			switch err {
 			case nil:
 				link, err := u.CreateURL(baseURL, sURL)
@@ -45,7 +45,7 @@ func ShortenAPIHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				}
 				w.Write(body)
 			case st.ErrNotFoundURL:
-				newPath, err := u.AddRandomString(storage, reqBody.Url)
+				newPath, err := u.AddRandomString(storage, reqBody.URL)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
