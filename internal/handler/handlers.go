@@ -11,6 +11,8 @@ import (
 
 const (
 	contentTypeKey       = "Content-Type"
+	acceptEncodingKey    = "Accept-Encoding"
+	contentEncodingKey   = "Content-Encoding"
 	applicationJSONValue = "application/json"
 	textPlainValue       = "text/plain"
 )
@@ -21,6 +23,8 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 	baseP := u.BasePath(baseURL)
 
 	router.Use(WithLogging)
+	router.Use(CompressGzip)
+	router.Use(UncompressGzip)
 
 	router.Post("/", ShortenLinkHandler(storage, baseURL))
 	router.Post("/api/shorten", ShortenAPIHandler(storage, baseURL))
