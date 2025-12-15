@@ -28,7 +28,7 @@ func run() error {
 	}
 
 	baseURL := cfg.BaseURL
-	storage := inmemory.NewStorage()
+	storage := inmemory.NewStorage(cfg.FilePath)
 	mux := handlers.InitHandlers(storage, baseURL)
 	return http.ListenAndServe(cfg.Server.String(), mux)
 }

@@ -70,8 +70,8 @@ func (w *gzipWriter) WriteHeader(code int) {
 
 func (w *gzipWriter) Write(p []byte) (int, error) {
 	if !w.wroteHeader {
-        w.WriteHeader(http.StatusOK) 
-    }
+		w.WriteHeader(http.StatusOK)
+	}
 
 	if w.compress && w.gz != nil {
 		return w.gz.Write(p)

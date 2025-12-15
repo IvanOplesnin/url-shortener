@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	AddressKEY = "SERVER_ADDRESS"
-	BaseURLKEY = "BASE_URL"
+	AddressKEY  = "SERVER_ADDRESS"
+	BaseURLKEY  = "BASE_URL"
+	FilePathKEY = "FILE_STORAGE_PATH"
 )
 
 type Server struct {
@@ -65,9 +66,10 @@ type Logger struct {
 }
 
 type Config struct {
-	Server  Server `env:"SERVER_ADDRESS"`
-	BaseURL string `env:"BASE_URL"`
-	Logger  Logger
+	Server   Server `env:"SERVER_ADDRESS"`
+	BaseURL  string `env:"BASE_URL"`
+	Logger   Logger
+	FilePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func (c *Config) String() string {
@@ -75,7 +77,8 @@ func (c *Config) String() string {
 	baseURL := fmt.Sprintf("BaseURl=%s", c.BaseURL)
 	logLevel := fmt.Sprintf("LogLevel=%s", c.Logger.Level)
 	logFormat := fmt.Sprintf("LogFormat=%s", c.Logger.Format)
-	return strings.Join([]string{server, baseURL, logLevel, logFormat}, "; ") + "\n"
+	filePath := fmt.Sprintf("filePath=%s", c.FilePath)
+	return strings.Join([]string{server, baseURL, logLevel, logFormat, filePath}, "; ") + "\n"
 }
 
 func GetConfig() (*Config, error) {
@@ -91,9 +94,11 @@ func GetConfig() (*Config, error) {
 	cfg.BaseURL = "http://localhost:8080/"
 	cfg.Logger.Level = "Info"
 	cfg.Logger.Format = logger.Text
+	cfg.FilePath = "data.json"
 
 	flag.Var(&server, "a", serverFlagUsage)
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
+	flag.StringVar(&cfg.FilePath, "f", cfg.FilePath, "File path storage")
 
 	flag.Parse()
 
@@ -105,6 +110,10 @@ func GetConfig() (*Config, error) {
 
 	if baseURL, ok := os.LookupEnv(BaseURLKEY); ok {
 		cfg.BaseURL = baseURL
+	}
+
+	if filePath, ok := os.LookupEnv(FilePathKEY); ok {
+		cfg.FilePath = filePath
 	}
 
 	cfg.Server = server
