@@ -12,62 +12,50 @@ import (
 
 func ShortenAPIHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(contentTypeKey) == applicationJSONValue {
-			w.Header().Set(contentTypeKey, applicationJSONValue)
-			body, err := io.ReadAll(r.Body)
-			defer r.Body.Close()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			reqBody := model.RequestBody{}
-			if err := json.Unmarshal(body, &reqBody); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			if _, err := u.ParseURL(string(reqBody.URL)); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			sURL, err := storage.Search(reqBody.URL)
-			switch err {
-			case nil:
-				link, err := u.CreateURL(baseURL, sURL)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				w.WriteHeader(http.StatusCreated)
-				body, err := marshallResponse(link)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				w.Write(body)
-			case repo.ErrNotFoundURL:
-				newPath, err := u.AddRandomString(storage, reqBody.URL)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				link, err := u.CreateURL(baseURL, newPath)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				w.WriteHeader(http.StatusCreated)
-				body, err := marshallResponse(link)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				w.Write(body)
-			default:
-				w.WriteHeader(http.StatusBadRequest)
-			}
+		if r.Header.Get(contentTypeKey) != applicationJSONValue {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		defer r.Body.Close()
+
+		w.Header().Set(contentTypeKey, applicationJSONValue)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var reqBody model.RequestBody
+		if err := json.Unmarshal(body, &reqBody); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if _, err := u.ParseURL(string(reqBody.URL)); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		short, _, err := getOrCreateShort(storage, reqBody.URL)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		link, err := u.CreateURL(baseURL, short)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		resp, err := marshallResponse(link)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write(resp)
 	}
 }
 

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -39,50 +41,43 @@ func InitHandlers(storage repo.Repository, baseURL string) *chi.Mux {
 
 func ShortenLinkHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(contentTypeKey) == textPlainValue {
-			w.Header().Set(contentTypeKey, textPlainValue)
-			newURLRaw, err := io.ReadAll(r.Body)
-			defer r.Body.Close()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			if _, err := u.ParseURL(string(newURLRaw)); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			newURL := repo.URL(newURLRaw)
-			sURL, err := storage.Search(newURL)
-			switch err {
-			case nil:
-				body, err := u.CreateURL(baseURL, sURL)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte(body))
-			case repo.ErrNotFoundURL:
-				newPath, err := u.AddRandomString(storage, repo.URL(newURL))
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				body, err := u.CreateURL(baseURL, newPath)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte(body))
-			default:
-				w.WriteHeader(http.StatusBadRequest)
-			}
+		if r.Header.Get(contentTypeKey) != textPlainValue {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		defer r.Body.Close()
+
+		w.Header().Set(contentTypeKey, textPlainValue)
+		
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if _, err := u.ParseURL(string(raw)); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		url := repo.URL(raw)
+
+		short, _, err := getOrCreateShort(storage, url)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		link, err := u.CreateURL(baseURL, short)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(link))
 	}
 }
+
 
 func RedirectHandler(storage repo.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -96,4 +91,20 @@ func RedirectHandler(storage repo.Repository) http.HandlerFunc {
 			http.Redirect(w, r, string(url), http.StatusTemporaryRedirect)
 		}
 	}
+}
+
+func getOrCreateShort(r repo.Repository, url repo.URL) (repo.ShortURL, bool, error) {
+	// bool = existed (true если уже была)
+	sURL, err := r.Search(url)
+	if err == nil {
+		return sURL, true, nil
+	}
+	if errors.Is(err, repo.ErrNotFoundURL) {
+		newPath, err := u.AddRandomString(r, url)
+		if err != nil {
+			return "", false, fmt.Errorf("add random: %w", err)
+		}
+		return newPath, false, nil
+	}
+	return "", false, err
 }
