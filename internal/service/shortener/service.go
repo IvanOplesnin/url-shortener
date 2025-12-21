@@ -10,7 +10,7 @@ import (
 
 type Service struct {
 	r       repo.Repository
-	baseUrl string
+	baseURL string
 }
 
 type Result struct {
@@ -19,8 +19,8 @@ type Result struct {
 	Exists bool
 }
 
-func New(r repo.Repository, baseUrl string) *Service {
-	return &Service{r: r, baseUrl: baseUrl}
+func New(r repo.Repository, baseURL string) *Service {
+	return &Service{r: r, baseURL: baseURL}
 }
 
 func (s *Service) Shorten(u repo.URL) (Result, error) {
@@ -30,7 +30,7 @@ func (s *Service) Shorten(u repo.URL) (Result, error) {
 
 	short, err := s.r.Search(u)
 	if err == nil {
-		link, err := usvc.CreateURL(s.baseUrl, short)
+		link, err := usvc.CreateURL(s.baseURL, short)
 		if err != nil {
 			return Result{}, err
 		}
@@ -46,7 +46,7 @@ func (s *Service) Shorten(u repo.URL) (Result, error) {
 		return Result{}, err
 	}
 
-	link, err := usvc.CreateURL(s.baseUrl, short)
+	link, err := usvc.CreateURL(s.baseURL, short)
 
 	if err != nil {
 		return Result{}, err
