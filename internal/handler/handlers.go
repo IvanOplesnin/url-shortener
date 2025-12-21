@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"github.com/go-chi/chi/v5"
 )
@@ -19,7 +18,7 @@ const (
 	textPlainValue       = "text/plain"
 )
 
-func InitHandlers(storage repo.Repository, baseURL string) *chi.Mux {
+func InitHandlers(svc *shortener.Service, baseURL string) *chi.Mux {
 	router := chi.NewRouter()
 
 	baseP := u.BasePath(baseURL)
@@ -28,83 +27,48 @@ func InitHandlers(storage repo.Repository, baseURL string) *chi.Mux {
 	router.Use(CompressGzip)
 	router.Use(UncompressGzip)
 
-	router.Post("/", ShortenLinkHandler(storage, baseURL))
-	router.Post("/api/shorten", ShortenAPIHandler(storage, baseURL))
+	router.Post("/", ShortenLinkHandler(svc))
+	router.Post("/api/shorten", ShortenAPIHandler(svc))
 
 	router.Route(
 		baseP, func(router chi.Router) {
-			router.Get("/{id}", RedirectHandler(storage))
+			router.Get("/{id}", RedirectHandler(svc))
 		})
 
 	return router
 }
 
-func ShortenLinkHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
+func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) != textPlainValue {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
-
 		w.Header().Set(contentTypeKey, textPlainValue)
-		
 		raw, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if _, err := u.ParseURL(string(raw)); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		url := repo.URL(raw)
-
-		short, _, err := getOrCreateShort(storage, url)
+		res, err := svc.Shorten(repo.URL(raw))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
-		link, err := u.CreateURL(baseURL, short)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(link))
+		_, _ = w.Write([]byte(res.Link))
 	}
 }
 
-
-func RedirectHandler(storage repo.Repository) http.HandlerFunc {
+func RedirectHandler(svc *shortener.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			id := chi.URLParam(r, "id")
-			url, err := storage.Get(repo.ShortURL(id))
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-			http.Redirect(w, r, string(url), http.StatusTemporaryRedirect)
-		}
-	}
-}
-
-func getOrCreateShort(r repo.Repository, url repo.URL) (repo.ShortURL, bool, error) {
-	// bool = existed (true если уже была)
-	sURL, err := r.Search(url)
-	if err == nil {
-		return sURL, true, nil
-	}
-	if errors.Is(err, repo.ErrNotFoundURL) {
-		newPath, err := u.AddRandomString(r, url)
+		id := chi.URLParam(r, "id")
+		url, err := svc.Resolve(repo.ShortURL(id))
 		if err != nil {
-			return "", false, fmt.Errorf("add random: %w", err)
+			http.NotFound(w, r)
+			return
 		}
-		return newPath, false, nil
+		http.Redirect(w, r, string(url), http.StatusTemporaryRedirect)
 	}
-	return "", false, err
 }

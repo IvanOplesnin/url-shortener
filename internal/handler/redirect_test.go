@@ -7,6 +7,7 @@ import (
 
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	"go.uber.org/mock/gomock"
 )
 
@@ -86,7 +87,9 @@ func TestRedirectHandler(t *testing.T) {
 
 			// Инициализация маршрутизатора с мок-хранилищем и базовым URL
 			// InitHandlers настраивает маршруты, включая обработчик редиректа
-			mux := InitHandlers(storage, baseURL)
+			newService := shortener.New(storage, baseURL)
+
+			mux := InitHandlers(newService, baseURL)
 			// Обработка запроса
 			mux.ServeHTTP(rr, req)
 

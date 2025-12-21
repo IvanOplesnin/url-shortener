@@ -8,6 +8,7 @@ import (
 
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"go.uber.org/mock/gomock"
 )
@@ -188,7 +189,9 @@ func TestShortenLinkHandler(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Инициализация обработчика с моком хранилища и базовым URL
-			h := ShortenLinkHandler(storage, baseURL)
+			newService := shortener.New(storage, baseURL)
+
+			h := ShortenLinkHandler(newService)
 			// Обработка запроса
 			h.ServeHTTP(rr, req)
 

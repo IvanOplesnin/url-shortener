@@ -10,6 +10,7 @@ import (
 	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	inmemory "github.com/IvanOplesnin/url-shortener/internal/repository/in_memory"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/persisted"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func run() error {
 	if err != nil {
 		logger.Log.Fatalf("Can`t create repository %s", err)
 	}
-	
-	mux := handlers.InitHandlers(persistedRepo, baseURL)
+	svc := shortener.New(persistedRepo, baseURL)
+	mux := handlers.InitHandlers(svc, baseURL)
 	return http.ListenAndServe(cfg.Server.String(), mux)
 }

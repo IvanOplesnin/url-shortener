@@ -11,6 +11,7 @@ import (
 	"github.com/IvanOplesnin/url-shortener/internal/model"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"go.uber.org/mock/gomock"
 )
@@ -186,10 +187,10 @@ func TestShortenApiHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			storage := mock_repo.NewMockStorage(ctrl)
+			repository := mock_repo.NewMockStorage(ctrl)
 
 			if tt.setupMock != nil {
-				tt.setupMock(storage)
+				tt.setupMock(repository)
 			}
 
 			req := httptest.NewRequest(tt.method, "/api/shorten", bytes.NewReader(tt.body))
@@ -199,8 +200,10 @@ func TestShortenApiHandler(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
+			
+			newService := shortener.New(repository, baseURL)
 
-			h := ShortenAPIHandler(storage, baseURL)
+			h := ShortenAPIHandler(newService)
 
 			h.ServeHTTP(rr, req)
 

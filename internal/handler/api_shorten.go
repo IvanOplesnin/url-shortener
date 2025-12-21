@@ -6,11 +6,10 @@ import (
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/model"
-	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
-	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
+	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 )
 
-func ShortenAPIHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
+func ShortenAPIHandler(svc *shortener.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) != applicationJSONValue {
 			w.WriteHeader(http.StatusBadRequest)
@@ -19,47 +18,33 @@ func ShortenAPIHandler(storage repo.Repository, baseURL string) http.HandlerFunc
 		defer r.Body.Close()
 
 		w.Header().Set(contentTypeKey, applicationJSONValue)
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		var reqBody model.RequestBody
-		if err := json.Unmarshal(body, &reqBody); err != nil {
+		var req model.RequestBody
+		if err := json.Unmarshal(body, &req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		if _, err := u.ParseURL(string(reqBody.URL)); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		short, _, err := getOrCreateShort(storage, reqBody.URL)
+		res, err := svc.Shorten(req.URL)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		link, err := u.CreateURL(baseURL, short)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		resp, err := marshallResponse(link)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write(resp)
-	}
-}
 
-func marshallResponse(link string) ([]byte, error) {
-	responseBody := model.ResponseBody{Result: link}
-	return json.Marshal(responseBody)
+		resp := model.ResponseBody{Result: res.Link}
+		b, err := json.Marshal(resp)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write(b)
+	}
 }
