@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/model"
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 )
 
-func ShortenAPIHandler(storage st.Storage, baseURL string) http.HandlerFunc {
+func ShortenAPIHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) == applicationJSONValue {
 			w.Header().Set(contentTypeKey, applicationJSONValue)
@@ -44,7 +44,7 @@ func ShortenAPIHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 					return
 				}
 				w.Write(body)
-			case st.ErrNotFoundURL:
+			case repo.ErrNotFoundURL:
 				newPath, err := u.AddRandomString(storage, reqBody.URL)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)

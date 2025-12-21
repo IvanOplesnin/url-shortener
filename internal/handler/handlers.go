@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/http"
 
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"github.com/go-chi/chi/v5"
 )
@@ -17,7 +17,7 @@ const (
 	textPlainValue       = "text/plain"
 )
 
-func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
+func InitHandlers(storage repo.Repository, baseURL string) *chi.Mux {
 	router := chi.NewRouter()
 
 	baseP := u.BasePath(baseURL)
@@ -37,7 +37,7 @@ func InitHandlers(storage st.Storage, baseURL string) *chi.Mux {
 	return router
 }
 
-func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
+func ShortenLinkHandler(storage repo.Repository, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) == textPlainValue {
 			w.Header().Set(contentTypeKey, textPlainValue)
@@ -51,7 +51,7 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			newURL := st.URL(newURLRaw)
+			newURL := repo.URL(newURLRaw)
 			sURL, err := storage.Search(newURL)
 			switch err {
 			case nil:
@@ -62,8 +62,8 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 				}
 				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte(body))
-			case st.ErrNotFoundURL:
-				newPath, err := u.AddRandomString(storage, st.URL(newURL))
+			case repo.ErrNotFoundURL:
+				newPath, err := u.AddRandomString(storage, repo.URL(newURL))
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
 					return
@@ -84,11 +84,11 @@ func ShortenLinkHandler(storage st.Storage, baseURL string) http.HandlerFunc {
 	}
 }
 
-func RedirectHandler(storage st.Storage) http.HandlerFunc {
+func RedirectHandler(storage repo.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			id := chi.URLParam(r, "id")
-			url, err := storage.Get(st.ShortURL(id))
+			url, err := storage.Get(repo.ShortURL(id))
 			if err != nil {
 				http.NotFound(w, r)
 				return

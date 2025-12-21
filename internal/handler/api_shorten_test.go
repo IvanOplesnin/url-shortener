@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/IvanOplesnin/url-shortener/internal/model"
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
-	mock_storage "github.com/IvanOplesnin/url-shortener/internal/repository/mock"
+	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
+	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"go.uber.org/mock/gomock"
 )
@@ -29,7 +29,7 @@ func TestShortenApiHandler(t *testing.T) {
 		method      string
 		body        []byte
 		contentType string
-		setupMock   func(m *mock_storage.MockStorage)
+		setupMock   func(m *mock_repo.MockRepo)
 		want        want
 	}{
 		{
@@ -37,14 +37,14 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().
-					Search(st.URL("https://google.com")).
-					Return(st.ShortURL(""), st.ErrNotFoundURL).
+					Search(repo.URL("https://google.com")).
+					Return(repo.ShortURL(""), repo.ErrNotFoundURL).
 					Times(1)
 
 				m.EXPECT().
-					Add(gomock.Any(), st.URL("https://google.com")).
+					Add(gomock.Any(), repo.URL("https://google.com")).
 					Return(nil).
 					Times(1)
 			},
@@ -73,10 +73,10 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().
-					Search(st.URL("https://google.com")).
-					Return(st.ShortURL("abc123"), nil).
+					Search(repo.URL("https://google.com")).
+					Return(repo.ShortURL("abc123"), nil).
 					Times(1)
 
 				m.EXPECT().
@@ -92,7 +92,7 @@ func TestShortenApiHandler(t *testing.T) {
 					if err := json.Unmarshal(body, &res); err != nil {
 						t.Fatalf("invalid json body %q: %v", string(body), err)
 					}
-					expected, _ := u.CreateURL(baseURL, st.ShortURL("abc123"))
+					expected, _ := u.CreateURL(baseURL, repo.ShortURL("abc123"))
 					if res.Result != expected {
 						t.Fatalf("expected result %q, got %q", expected, res.Result)
 					}
@@ -106,7 +106,7 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: "text/plain", // не application/json
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Search(gomock.Any()).Times(0)
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 			},
@@ -130,7 +130,7 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"`), // нет закрывающей }
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Search(gomock.Any()).Times(0)
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 			},
@@ -152,7 +152,7 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Search(gomock.Any()).Times(0)
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 			},
@@ -169,7 +169,7 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"not\a\valid-url"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Search(gomock.Any()).Times(0)
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 			},
@@ -186,7 +186,7 @@ func TestShortenApiHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			storage := mock_storage.NewMockStorage(ctrl)
+			storage := mock_repo.NewMockStorage(ctrl)
 
 			if tt.setupMock != nil {
 				tt.setupMock(storage)

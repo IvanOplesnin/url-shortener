@@ -5,9 +5,11 @@ import (
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/config"
+	"github.com/IvanOplesnin/url-shortener/internal/filestorage"
 	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
 	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	inmemory "github.com/IvanOplesnin/url-shortener/internal/repository/in_memory"
+	"github.com/IvanOplesnin/url-shortener/internal/repository/persisted"
 )
 
 func main() {
@@ -28,7 +30,15 @@ func run() error {
 	}
 
 	baseURL := cfg.BaseURL
-	storage := inmemory.NewStorage(cfg.FilePath)
-	mux := handlers.InitHandlers(storage, baseURL)
+	repo := inmemory.NewRepo()
+
+	fileStorage := filestorage.NewJSONStore(cfg.FilePath)
+	persistedRepo, err := persisted.New(repo, repo, repo, fileStorage, repo)
+
+	if err != nil {
+		logger.Log.Fatalf("Can`t create repository %s", err)
+	}
+	
+	mux := handlers.InitHandlers(persistedRepo, baseURL)
 	return http.ListenAndServe(cfg.Server.String(), mux)
 }

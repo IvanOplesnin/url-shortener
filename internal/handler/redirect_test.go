@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
-	mock_storage "github.com/IvanOplesnin/url-shortener/internal/repository/mock"
+	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
+	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
 	"go.uber.org/mock/gomock"
 )
 
@@ -33,19 +33,19 @@ func TestRedirectHandler(t *testing.T) {
 
 	// Определение тестовых случаев
 	tests := []struct {
-		name      string                          // Название теста — описывает сценарий
-		method    string                          // HTTP-метод запроса
-		path      string                          // Путь запроса (включая базовый URL)
-		setupMock func(*mock_storage.MockStorage) // Мок-хранилище с предустановленным поведением
-		want      want                            // Ожидаемые результаты
+		name      string                    // Название теста — описывает сценарий
+		method    string                    // HTTP-метод запроса
+		path      string                    // Путь запроса (включая базовый URL)
+		setupMock func(*mock_repo.MockRepo) // Мок-хранилище с предустановленным поведением
+		want      want                      // Ожидаемые результаты
 	}{
 		// Тест 1: успешный редирект
 		{
 			name:   "success redirect",  // Описание: успешный переход по короткой ссылке
 			method: http.MethodGet,      // Ожидается GET-запрос
 			path:   baseURL + "/abc123", // Запрос по адресу вида http://localhost:8080/abc123
-			setupMock: func(m *mock_storage.MockStorage) {
-				m.EXPECT().Get(st.ShortURL("abc123")).Return(st.URL("https://google.com"), nil).Times(1)
+			setupMock: func(m *mock_repo.MockRepo) {
+				m.EXPECT().Get(repo.ShortURL("abc123")).Return(repo.URL("https://google.com"), nil).Times(1)
 			},
 			want: want{
 				statusCode: http.StatusTemporaryRedirect, // Ожидается временный редирект (307)
@@ -57,8 +57,8 @@ func TestRedirectHandler(t *testing.T) {
 			name:   "not found",         // Описание: запрашиваемая короткая ссылка отсутствует
 			method: http.MethodGet,      // GET-запрос
 			path:   baseURL + "/abc123", // Аналогичный путь
-			setupMock: func(m *mock_storage.MockStorage) {
-				m.EXPECT().Get(st.ShortURL("abc123")).Return(st.URL(""), st.ErrNotFoundURL).Times(1)
+			setupMock: func(m *mock_repo.MockRepo) {
+				m.EXPECT().Get(repo.ShortURL("abc123")).Return(repo.URL(""), repo.ErrNotFoundURL).Times(1)
 			},
 			want: want{
 				statusCode: http.StatusNotFound, // Ожидается статус 404
@@ -71,9 +71,9 @@ func TestRedirectHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()	
+			defer ctrl.Finish()
 
-			storage := mock_storage.NewMockStorage(ctrl)
+			storage := mock_repo.NewMockStorage(ctrl)
 
 			if tt.setupMock != nil {
 				tt.setupMock(storage)

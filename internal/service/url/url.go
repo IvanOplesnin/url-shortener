@@ -41,7 +41,7 @@ func BasePath(baseURL string) string {
 	return basePath
 }
 
-func AddRandomString(storage st.Storage, url st.URL) (st.ShortURL, error) {
+func AddRandomString(storage st.Repository, url st.URL) (st.ShortURL, error) {
 	const retry = 6
 
 	lettrs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

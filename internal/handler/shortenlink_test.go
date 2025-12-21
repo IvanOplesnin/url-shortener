@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
-	mock_storage "github.com/IvanOplesnin/url-shortener/internal/repository/mock"
+	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
+	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
 	"go.uber.org/mock/gomock"
 )
@@ -34,12 +34,12 @@ func TestShortenLinkHandler(t *testing.T) {
 
 	// Определение тестовых сценариев
 	tests := []struct {
-		name        string                            // Название теста — описывает сценарий
-		method      string                            // HTTP-метод запроса
-		body        string                            // Тело запроса (исходная ссылка или некорректные данные)
-		contentType string                            // Content-Type запроса
-		setupMock   func(m *mock_storage.MockStorage) //
-		want        want                              // Ожидаемые результаты
+		name        string                      // Название теста — описывает сценарий
+		method      string                      // HTTP-метод запроса
+		body        string                      // Тело запроса (исходная ссылка или некорректные данные)
+		contentType string                      // Content-Type запроса
+		setupMock   func(m *mock_repo.MockRepo) //
+		want        want                        // Ожидаемые результаты
 	}{
 		// Сценарий 1: новая ссылка, отсутствует в хранилище
 		{
@@ -47,14 +47,14 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "text/plain",
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().
-					Search(st.URL("https://google.com")).
-					Return(st.ShortURL(""), st.ErrNotFoundURL).
+					Search(repo.URL("https://google.com")).
+					Return(repo.ShortURL(""), repo.ErrNotFoundURL).
 					Times(1)
 
 				m.EXPECT().
-					Add(gomock.Any(), st.URL("https://google.com")).
+					Add(gomock.Any(), repo.URL("https://google.com")).
 					Return(nil).
 					Times(1)
 			},
@@ -75,10 +75,10 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "text/plain",
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().
-					Search(st.URL("https://google.com")).
-					Return(st.ShortURL("abc123"), nil).
+					Search(repo.URL("https://google.com")).
+					Return(repo.ShortURL("abc123"), nil).
 					Times(1)
 
 				m.EXPECT().
@@ -90,7 +90,7 @@ func TestShortenLinkHandler(t *testing.T) {
 				contentType: "text/plain",
 				bodyCheck: func(t *testing.T, body string) {
 					// Ожидается полный URL: baseURL + "/abc123"
-					expected, _ := u.CreateURL(baseURL, st.ShortURL("abc123"))
+					expected, _ := u.CreateURL(baseURL, repo.ShortURL("abc123"))
 					if body != expected {
 						t.Fatalf("expected body %q, got %q", expected, body)
 					}
@@ -103,7 +103,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "https://google.com",
 			contentType: "application/json", // Неподдерживаемый Content-Type
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 				m.EXPECT().Search(gomock.Any()).Times(0)
 			},
@@ -124,7 +124,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "",
 			contentType: "text/plain",
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 				m.EXPECT().Search(gomock.Any()).Times(0)
 			},
@@ -140,7 +140,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        "a,jshda\naslkjdgh7162//\\",
 			contentType: "text/plain",
-			setupMock: func(m *mock_storage.MockStorage) {
+			setupMock: func(m *mock_repo.MockRepo) {
 				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
 				m.EXPECT().Search(gomock.Any()).Times(0)
 			},
@@ -171,7 +171,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			storage := mock_storage.NewMockStorage(ctrl)
+			storage := mock_repo.NewMockStorage(ctrl)
 
 			if tt.setupMock != nil {
 				tt.setupMock(storage)
