@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -34,11 +35,15 @@ func run() error {
 	baseURL := cfg.BaseURL
 	repo := inmemory.NewRepo()
 
-	db, err := psql.Connect(cfg.DbDSN)
-	if err != nil {
-		logger.Log.Fatalf("Can`t connect to database: %s", err)
+	var db *sql.DB
+
+	if cfg.DbDSN != "" {
+		db, err = psql.Connect(cfg.DbDSN)
+		if err != nil {
+			logger.Log.Fatalf("Can`t connect to database: %s", err)
+		}
+		defer db.Close()
 	}
-	defer db.Close()
 
 	fileStorage := filestorage.NewJSONStore(cfg.FilePath)
 	persistedRepo, err := persisted.New(repo, repo, repo, fileStorage, repo)
