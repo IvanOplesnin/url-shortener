@@ -16,6 +16,7 @@ const (
 	AddressKEY  = "SERVER_ADDRESS"
 	BaseURLKEY  = "BASE_URL"
 	FilePathKEY = "FILE_STORAGE_PATH"
+	DatabaseDSN = "DATABASE_DSN"
 )
 
 type Server struct {
@@ -70,6 +71,7 @@ type Config struct {
 	BaseURL  string `env:"BASE_URL"`
 	Logger   Logger
 	FilePath string `env:"FILE_STORAGE_PATH"`
+	DbDSN    string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) String() string {
@@ -94,11 +96,12 @@ func GetConfig() (*Config, error) {
 	cfg.BaseURL = "http://localhost:8080/"
 	cfg.Logger.Level = "Info"
 	cfg.Logger.Format = logger.Text
-	cfg.FilePath = "data.json"
+	cfg.FilePath = "data.json" 
 
 	flag.Var(&server, "a", serverFlagUsage)
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
 	flag.StringVar(&cfg.FilePath, "f", cfg.FilePath, "File path storage")
+	flag.StringVar(&cfg.DbDSN, "d", cfg.DbDSN, "Databse DSN")
 
 	flag.Parse()
 
@@ -114,6 +117,10 @@ func GetConfig() (*Config, error) {
 
 	if filePath, ok := os.LookupEnv(FilePathKEY); ok {
 		cfg.FilePath = filePath
+	}
+
+	if dsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
+		cfg.DbDSN = dsn
 	}
 
 	cfg.Server = server

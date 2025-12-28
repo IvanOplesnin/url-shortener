@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15
+    container_name: database
+    working_dir: /db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - url_shortener_db:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - url-shortener
+
+volumes:
+  url_shortener_db:
+
+networks:
+  url-shortener:

@@ -89,7 +89,7 @@ func TestRedirectHandler(t *testing.T) {
 			// InitHandlers настраивает маршруты, включая обработчик редиректа
 			newService := shortener.New(storage, baseURL)
 
-			mux := InitHandlers(newService, baseURL)
+			mux := InitHandlers(newService, baseURL, nil)
 			// Обработка запроса
 			mux.ServeHTTP(rr, req)
 

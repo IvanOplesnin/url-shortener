@@ -23,3 +23,4 @@ vendor/
 .vscode
 diff.txt
 data.json
+.env

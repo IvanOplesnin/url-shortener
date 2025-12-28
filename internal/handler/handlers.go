@@ -18,7 +18,7 @@ const (
 	textPlainValue       = "text/plain"
 )
 
-func InitHandlers(svc *shortener.Service, baseURL string) *chi.Mux {
+func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
 	router := chi.NewRouter()
 
 	baseP := u.BasePath(baseURL)
@@ -29,6 +29,7 @@ func InitHandlers(svc *shortener.Service, baseURL string) *chi.Mux {
 
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
+	router.Get("/ping", PingHandler(p))
 
 	router.Route(
 		baseP, func(router chi.Router) {
