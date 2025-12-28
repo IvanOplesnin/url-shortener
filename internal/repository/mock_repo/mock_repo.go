@@ -7,7 +7,7 @@
 //
 
 // Package mock_storage is a generated GoMock package.
-package mock_storage
+package mock_repo
 
 import (
 	reflect "reflect"
@@ -16,8 +16,8 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockStorage is a mock of Storage interface.
-type MockStorage struct {
+// MockRepo is a mock of Storage interface.
+type MockRepo struct {
 	ctrl     *gomock.Controller
 	recorder *MockStorageMockRecorder
 	isgomock struct{}
@@ -25,23 +25,23 @@ type MockStorage struct {
 
 // MockStorageMockRecorder is the mock recorder for MockStorage.
 type MockStorageMockRecorder struct {
-	mock *MockStorage
+	mock *MockRepo
 }
 
 // NewMockStorage creates a new mock instance.
-func NewMockStorage(ctrl *gomock.Controller) *MockStorage {
-	mock := &MockStorage{ctrl: ctrl}
+func NewMockStorage(ctrl *gomock.Controller) *MockRepo {
+	mock := &MockRepo{ctrl: ctrl}
 	mock.recorder = &MockStorageMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
+func (m *MockRepo) EXPECT() *MockStorageMockRecorder {
 	return m.recorder
 }
 
 // Add mocks base method.
-func (m *MockStorage) Add(key repository.ShortURL, value repository.URL) error {
+func (m *MockRepo) Add(key repository.ShortURL, value repository.URL) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", key, value)
 	ret0, _ := ret[0].(error)
@@ -51,11 +51,11 @@ func (m *MockStorage) Add(key repository.ShortURL, value repository.URL) error {
 // Add indicates an expected call of Add.
 func (mr *MockStorageMockRecorder) Add(key, value any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), key, value)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRepo)(nil).Add), key, value)
 }
 
 // Get mocks base method.
-func (m *MockStorage) Get(key repository.ShortURL) (repository.URL, error) {
+func (m *MockRepo) Get(key repository.ShortURL) (repository.URL, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", key)
 	ret0, _ := ret[0].(repository.URL)
@@ -66,11 +66,11 @@ func (m *MockStorage) Get(key repository.ShortURL) (repository.URL, error) {
 // Get indicates an expected call of Get.
 func (mr *MockStorageMockRecorder) Get(key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStorage)(nil).Get), key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockRepo)(nil).Get), key)
 }
 
 // Search mocks base method.
-func (m *MockStorage) Search(url repository.URL) (repository.ShortURL, error) {
+func (m *MockRepo) Search(url repository.URL) (repository.ShortURL, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Search", url)
 	ret0, _ := ret[0].(repository.ShortURL)
@@ -81,5 +81,5 @@ func (m *MockStorage) Search(url repository.URL) (repository.ShortURL, error) {
 // Search indicates an expected call of Search.
 func (mr *MockStorageMockRecorder) Search(url any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockStorage)(nil).Search), url)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockRepo)(nil).Search), url)
 }
