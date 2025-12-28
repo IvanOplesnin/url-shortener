@@ -37,8 +37,8 @@ func run() error {
 
 	var db *sql.DB
 
-	if cfg.DbDSN != "" {
-		db, err = psql.Connect(cfg.DbDSN)
+	if cfg.DBDSN != "" {
+		db, err = psql.Connect(cfg.DBDSN)
 		if err != nil {
 			logger.Log.Fatalf("Can`t connect to database: %s", err)
 		}
