@@ -18,7 +18,6 @@ func Up(db *sql.DB) error {
 	goose.SetDialect("postgres")
 	goose.SetBaseFS(migrationsFS)
 
-	// Папка внутри embed.FS (должна совпадать с путём в директиве go:embed)
 	if err := goose.Up(db, "schema"); err != nil {
 		return fmt.Errorf("goose up: %w", err)
 	}
@@ -30,7 +29,7 @@ func Down(db *sql.DB) error {
 	goose.SetDialect("postgres")
 	goose.SetBaseFS(migrationsFS)
 
-	if err := goose.Down(db, "migrations/schema"); err != nil {
+	if err := goose.Down(db, "schema"); err != nil {
 		return fmt.Errorf("goose down: %w", err)
 	}
 	return nil
