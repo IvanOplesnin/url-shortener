@@ -1,6 +1,9 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -12,6 +15,8 @@ import (
 	"github.com/IvanOplesnin/url-shortener/internal/repository/persisted"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/psql"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
+	migrate "github.com/IvanOplesnin/url-shortener/migrations"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,6 +30,9 @@ func run() error {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return err
+	}
+	if err := runMigrate(cfg); err != nil {
+		log.Fatal(err)
 	}
 
 	err = logger.SetupLogger(cfg.Logger.Level, cfg.Logger.Format)
@@ -63,4 +71,31 @@ func createRepo(cfg *config.Config) (*persisted.Repo, *pgxpool.Pool, error) {
 		return nil, nil, err
 	}
 	return persisterdRepo, nil, nil
+}
+
+func runMigrate(cfg *config.Config) error {
+	db, err := sql.Open("pgx", cfg.DBDSN)
+	if err != nil {
+		return fmt.Errorf("open db: %w", err)
+	}
+	defer db.Close()
+
+	if err := migrate.Up(db); err != nil {
+		if isInsufficientPrivilege(err) {
+			log.Printf("migrations skipped (insufficient privileges): %v", err)
+			return nil
+		}
+		return fmt.Errorf("migrate up: %w", err)
+	}
+
+	return nil
+}
+
+func isInsufficientPrivilege(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// 42501 = insufficient_privilege
+		return pgErr.Code == "42501"
+	}
+	return false
 }
