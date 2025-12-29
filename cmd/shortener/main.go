@@ -74,6 +74,9 @@ func createRepo(cfg *config.Config) (*persisted.Repo, *pgxpool.Pool, error) {
 }
 
 func runMigrate(cfg *config.Config) error {
+	if cfg.DBDSN == "" {
+		return nil
+	}
 	db, err := sql.Open("pgx", cfg.DBDSN)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
