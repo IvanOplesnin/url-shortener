@@ -55,7 +55,7 @@ func AddRandomString(storage st.Repository, url st.URL) (st.ShortURL, error) {
 		if err == nil {
 			return st.ShortURL(string(b)), nil
 		}
-		if errors.Is(err, st.ErrShortURLAlreadyExists) {
+		if errors.Is(err, st.ErrShortURLAlreadyExists) || errors.Is(err, st.ErrAlreadyExists) {
 			continue
 		}
 		return "", fmt.Errorf("error addRandomString: %w", err)

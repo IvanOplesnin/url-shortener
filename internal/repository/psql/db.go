@@ -2,23 +2,22 @@ package psql
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func Connect(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+func Connect(dsn string) (*pgxpool.Pool, error) {
+	db, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
+	if err := db.Ping(ctx); err != nil {
+		db.Close()
 		return nil, err
 	}
 

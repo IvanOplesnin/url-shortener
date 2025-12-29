@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/IvanOplesnin/url-shortener/internal/repository/persisted"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/psql"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -33,20 +33,7 @@ func run() error {
 	}
 
 	baseURL := cfg.BaseURL
-	repo := inmemory.NewRepo()
-
-	var db *sql.DB
-
-	if cfg.DBDSN != "" {
-		db, err = psql.Connect(cfg.DBDSN)
-		if err != nil {
-			logger.Log.Fatalf("Can`t connect to database: %s", err)
-		}
-		defer db.Close()
-	}
-
-	fileStorage := filestorage.NewJSONStore(cfg.FilePath)
-	persistedRepo, err := persisted.New(repo, repo, repo, fileStorage, repo)
+	persistedRepo, db, err := createRepo(cfg)
 
 	if err != nil {
 		logger.Log.Fatalf("Can`t create repository %s", err)
@@ -54,4 +41,26 @@ func run() error {
 	svc := shortener.New(persistedRepo, baseURL)
 	mux := handlers.InitHandlers(svc, baseURL, db)
 	return http.ListenAndServe(cfg.Server.String(), mux)
+}
+
+func createRepo(cfg *config.Config) (*persisted.Repo, *pgxpool.Pool, error) {
+	fileStorage := filestorage.NewJSONStore(cfg.FilePath)
+	if cfg.DBDSN != "" {
+		db, err := psql.Connect(cfg.DBDSN)
+		if err != nil {
+			return nil, nil, err
+		}
+		repo := psql.NewRepo(db)
+		persisterdRepo, err := persisted.New(repo, nil, nil, fileStorage, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+		return persisterdRepo, db, nil
+	}
+	repo := inmemory.NewRepo()
+	persisterdRepo, err := persisted.New(repo, repo, repo, fileStorage, repo)
+	if err != nil {
+		return nil, nil, err
+	}
+	return persisterdRepo, nil, nil
 }

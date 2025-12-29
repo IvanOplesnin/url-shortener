@@ -14,7 +14,7 @@ func PingHandler(p Pinger) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return 
 		}
-		if err := p.PingContext(ctx); err != nil {
+		if err := p.Ping(ctx); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

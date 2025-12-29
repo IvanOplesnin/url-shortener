@@ -15,5 +15,6 @@ echo "address_server: $SERVER_ADDRESS"
 echo "base_url: $BASE_URL"
 echo "file_storage_path: $FILE_STORAGE_PATH"
 echo "dsn: $DATABASE_DSN"
+echo
 
 go run ./cmd/shortener/main.go

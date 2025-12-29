@@ -20,7 +20,9 @@ func New(base repo.Repository, s repo.Seeder, snap repo.Snapshoter, p filestorag
 	if err != nil {
 		return nil, fmt.Errorf("persisted: load: %w", err)
 	}
-	s.Seed(records)
+	if s != nil {
+		s.Seed(records)
+	}
 
 	return &Repo{
 		base: base,
@@ -44,11 +46,13 @@ func (r *Repo) Add(short repo.ShortURL, url repo.URL) error {
 		return err
 	}
 
-	if err := r.p.Save(r.snap.Snapshot()); err != nil {
-		if r.rb != nil {
-			r.rb.Remove(short, url)
+	if r.snap != nil {
+		if err := r.p.Save(r.snap.Snapshot()); err != nil {
+			if r.rb != nil {
+				r.rb.Remove(short, url)
+			}
+			return fmt.Errorf("persisted: save: %w", err)
 		}
-		return fmt.Errorf("persisted: save: %w", err)
 	}
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	"github.com/IvanOplesnin/url-shortener/internal/model"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 )
@@ -21,18 +22,21 @@ func ShortenAPIHandler(svc *shortener.Service) http.HandlerFunc {
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
+			logger.Log.Errorf("shorten error %s", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		var req model.RequestBody
 		if err := json.Unmarshal(body, &req); err != nil {
+			logger.Log.Errorf("shorten error %s", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		res, err := svc.Shorten(req.URL)
 		if err != nil {
+			logger.Log.Errorf("shorten error %s", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

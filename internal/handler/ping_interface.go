@@ -3,5 +3,5 @@ package handlers
 import "context"
 
 type Pinger interface {
-	PingContext(ctx context.Context) error
+	Ping(ctx context.Context) error
 }
