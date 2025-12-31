@@ -7,26 +7,25 @@ import (
 
 	"github.com/IvanOplesnin/url-shortener/internal/model"
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
-	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	usvc "github.com/IvanOplesnin/url-shortener/internal/service/url"
 )
 
 type Service struct {
-	r       repo.Repository
+	r       repository.Repository
 	baseURL string
 }
 
 type Result struct {
-	Short  repo.ShortURL
+	Short  repository.ShortURL
 	Link   string
 	Exists bool
 }
 
-func New(r repo.Repository, baseURL string) *Service {
+func New(r repository.Repository, baseURL string) *Service {
 	return &Service{r: r, baseURL: baseURL}
 }
 
-func (s *Service) Shorten(ctx context.Context, u repo.URL) (Result, error) {
+func (s *Service) Shorten(ctx context.Context, u repository.URL) (Result, error) {
 	if _, err := usvc.ParseURL(string(u)); err != nil {
 		return Result{}, fmt.Errorf("invalid url: %w", err)
 	}
@@ -40,7 +39,7 @@ func (s *Service) Shorten(ctx context.Context, u repo.URL) (Result, error) {
 		return Result{Short: short, Link: link, Exists: true}, nil
 	}
 
-	if !errors.Is(err, repo.ErrNotFoundURL) {
+	if !errors.Is(err, repository.ErrNotFoundURL) {
 		return Result{}, err
 	}
 
@@ -57,11 +56,11 @@ func (s *Service) Shorten(ctx context.Context, u repo.URL) (Result, error) {
 	return Result{Short: short, Link: link, Exists: false}, nil
 }
 
-func (s *Service) Resolve(ctx context.Context, short repo.ShortURL) (repo.URL, error) {
+func (s *Service) Resolve(ctx context.Context, short repository.ShortURL) (repository.URL, error) {
 	return s.r.Get(ctx, short)
 }
 
-func (s *Service) AddRandomString(ctx context.Context, u repo.URL) (repo.ShortURL, error) {
+func (s *Service) AddRandomString(ctx context.Context, u repository.URL) (repository.ShortURL, error) {
 	const retry = 6
 
 	for i := 0; i < retry; i++ {
@@ -72,7 +71,7 @@ func (s *Service) AddRandomString(ctx context.Context, u repo.URL) (repo.ShortUR
 			return short, nil
 		}
 
-		if errors.Is(err, repo.ErrShortURLAlreadyExists) || errors.Is(err, repo.ErrAlreadyExists) {
+		if errors.Is(err, repository.ErrShortURLAlreadyExists) || errors.Is(err, repository.ErrAlreadyExists) {
 			continue
 		}
 
@@ -106,7 +105,7 @@ func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]
 	result := make(map[repository.URL]repository.ShortURL, len(batch))
 
 	// Транзакционный путь
-	tx, ok := s.r.(repo.TxRunner)
+	tx, ok := s.r.(repository.TxRunner)
 	if !ok {
 		err := createBatchFunc(ctx, order, result)(s.r)
 		if err != nil {
@@ -123,12 +122,12 @@ func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]
 	// Формируем ответ
 	out := make([]model.ResponseBatchBody, 0, len(batch))
 	for _, u := range order {
-		link, err := usvc.CreateURL(s.baseURL, result[repo.URL(u)])
+		link, err := usvc.CreateURL(s.baseURL, result[repository.URL(u)])
 		if err != nil {
 			return nil, wrap(err)
 		}
 		out = append(out, model.ResponseBatchBody{
-			CorrelationID: corr[repo.URL(u)],
+			CorrelationID: corr[repository.URL(u)],
 			ShortURL:      link,
 		})
 	}
@@ -141,7 +140,7 @@ func createBatchFunc(ctx context.Context, order []string, result map[repository.
 	wrap := func(err error) error { return fmt.Errorf("service batch: %w", err) }
 
 	batch := func(r repository.Repository) error {
-		br, ok := r.(repo.BatchRepo)
+		br, ok := r.(repository.BatchRepo)
 		if !ok {
 			return wrap(fmt.Errorf("repo in tx doesn't support batch methods"))
 		}
@@ -167,7 +166,7 @@ func createBatchFunc(ctx context.Context, order []string, result map[repository.
 			for _, u := range remaining {
 				short := usvc.GenerateShort(6)
 				args = append(args, repository.ArgAddMany{
-					URL:      repo.URL(u),
+					URL:      repository.URL(u),
 					ShortURL: short,
 				})
 			}
