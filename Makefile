@@ -1,10 +1,14 @@
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: run test
+.PHONY: run test run_memory
 
 run:
-	./run.sh
+	ENV_FILE=./.env ./run.sh
 
 test:
 	go test ./... -v
+
+
+run_memory:
+	ENV_FILE=./.env.inmemory ./run.sh

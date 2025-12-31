@@ -1,0 +1,17 @@
+[
+  {
+    "id": 0,
+    "url": "https://example.com",
+    "short_url": "8Uecnj"
+  },
+  {
+    "id": 2,
+    "url": "https://habr.com/ru/articles/155201/",
+    "short_url": "l6Mgrn"
+  },
+  {
+    "id": 1,
+    "url": "https://pkg.go.dev/fmt",
+    "short_url": "vC1nGU"
+  }
+]

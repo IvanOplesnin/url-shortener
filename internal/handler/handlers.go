@@ -29,7 +29,9 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
 
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
+	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc, baseURL))
 	router.Get("/ping", PingHandler(p))
+
 
 	router.Route(
 		baseP, func(router chi.Router) {
@@ -52,7 +54,9 @@ func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		res, err := svc.Shorten(repo.URL(raw))
+
+		ctx := r.Context()
+		res, err := svc.Shorten(ctx, repo.URL(raw))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -65,7 +69,8 @@ func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 func RedirectHandler(svc *shortener.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		url, err := svc.Resolve(repo.ShortURL(id))
+		ctx := r.Context()
+		url, err := svc.Resolve(ctx, repo.ShortURL(id))
 		if err != nil {
 			http.NotFound(w, r)
 			return

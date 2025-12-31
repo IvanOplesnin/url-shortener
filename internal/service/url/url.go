@@ -1,6 +1,7 @@
 package url
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -8,10 +9,10 @@ import (
 	"net/url"
 	"time"
 
-	st "github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
-func CreateURL(base string, id st.ShortURL) (string, error) {
+func CreateURL(base string, id repository.ShortURL) (string, error) {
 	url, err := url.JoinPath(base, string(id))
 	if err != nil {
 		return "", fmt.Errorf("error createUrl: %w", err)
@@ -19,14 +20,14 @@ func CreateURL(base string, id st.ShortURL) (string, error) {
 	return url, nil
 }
 
-func ParseURL(urlRaw string) (st.URL, error) {
+func ParseURL(urlRaw string) (repository.URL, error) {
 	if urlRaw == "" {
 		return "", fmt.Errorf("empty body")
 	}
 	if _, err := url.Parse(urlRaw); err != nil {
 		return "", fmt.Errorf("error parseUrl: %w", err)
 	}
-	return st.URL(urlRaw), nil
+	return repository.URL(urlRaw), nil
 }
 
 func BasePath(baseURL string) string {
@@ -41,25 +42,36 @@ func BasePath(baseURL string) string {
 	return basePath
 }
 
-func AddRandomString(storage st.Repository, url st.URL) (st.ShortURL, error) {
+func AddRandomString(ctx context.Context, repositoryorage repository.Repository, url repository.URL) (repository.ShortURL, error) {
 	const retry = 6
 
-	lettrs := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	lettrs := "abcdefghijklmnopqrrepositoryuvwxyzABCDEFGHIJKLMNOPQRrepositoryUVWXYZ0123456789"
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	b := make([]byte, 6)
 	for count := 0; count < retry; count++ {
 		for i := range b {
 			b[i] = lettrs[r.Intn(len(lettrs))]
 		}
-		err := storage.Add(st.ShortURL(b), url)
+		err := repositoryorage.Add(ctx, repository.ShortURL(b), url)
 		if err == nil {
-			return st.ShortURL(string(b)), nil
+			return repository.ShortURL(string(b)), nil
 		}
-		if errors.Is(err, st.ErrShortURLAlreadyExists) || errors.Is(err, st.ErrAlreadyExists) {
+		if errors.Is(err, repository.ErrShortURLAlreadyExists) || errors.Is(err, repository.ErrAlreadyExists) {
 			continue
 		}
-		return "", fmt.Errorf("error addRandomString: %w", err)
+		return "", fmt.Errorf("error addRandomrepositoryring: %w", err)
 	}
 
-	return "", fmt.Errorf("error addRandomString: Can't generate random string")
+	return "", fmt.Errorf("error addRandomrepositoryring: Can't generate random repositoryring")
+}
+
+const lettrs = "abcdefghijklmnopqrrepositoryuvwxyzABCDEFGHIJKLMNOPQRrepositoryUVWXYZ0123456789"
+
+func GenerateShort(n int) repository.ShortURL {
+	b := make([]byte, 6)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := range b {
+		b[i] = lettrs[r.Intn(len(lettrs))]
+	}
+	return repository.ShortURL(string(b))
 }
