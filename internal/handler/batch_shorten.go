@@ -31,7 +31,7 @@ func ShortenBatchAPIHandler(svc *shortener.Service, baseURL string) http.Handler
 			return
 		}
 		ctx := r.Context()
-		respBatchBody, err := svc.Batch(ctx, reqBody)
+		respBatchBody, hadExisting, err := svc.Batch(ctx, reqBody)
 		if err != nil {
 			logger.Log.Errorf("shorten batch error %s", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -43,7 +43,11 @@ func ShortenBatchAPIHandler(svc *shortener.Service, baseURL string) http.Handler
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
+		if hadExisting {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
 		_, _ = w.Write(resp)
 	}
 }

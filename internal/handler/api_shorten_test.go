@@ -85,7 +85,7 @@ func TestShortenApiHandler(t *testing.T) {
 					Times(0)
 			},
 			want: want{
-				statusCode:  http.StatusCreated, // если переделаешь логику на 409, поменяй здесь
+				statusCode:  http.StatusConflict, // если переделаешь логику на 409, поменяй здесь
 				contentType: applicationJSONValue,
 				bodyCheck: func(t *testing.T, body []byte) {
 					t.Helper()

@@ -81,7 +81,8 @@ func (s *Service) AddRandomString(ctx context.Context, u repository.URL) (reposi
 	return "", fmt.Errorf("can't generate unique short url after %d retries", retry)
 }
 
-func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]model.ResponseBatchBody, error) {
+func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]model.ResponseBatchBody, bool, error) {
+	hadExisting := false
 	wrap := func(err error) error { return fmt.Errorf("service batch: %w", err) }
 
 	// валидируем вход и соберём порядок URL
@@ -91,32 +92,32 @@ func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]
 
 	for _, b := range batch {
 		if _, err := usvc.ParseURL(string(b.OriginalURL)); err != nil {
-			return nil, wrap(err)
+			return nil, hadExisting, wrap(err)
 		}
 		if _, ok := seen[b.OriginalURL]; ok {
-			return nil, wrap(fmt.Errorf("double url in data %s", b.OriginalURL))
+			return nil, hadExisting, wrap(fmt.Errorf("double url in data %s", b.OriginalURL))
 		}
 		seen[b.OriginalURL] = struct{}{}
 		order = append(order, string(b.OriginalURL))
 		corr[b.OriginalURL] = b.CorrelationID
 	}
 
-	// resultMap: URL -> ShortURL (то, что в итоге вернём)
 	result := make(map[repository.URL]repository.ShortURL, len(batch))
 
 	// Транзакционный путь
 	tx, ok := s.r.(repository.TxRunner)
 	if !ok {
-		err := createBatchFunc(ctx, order, result)(s.r)
+		// без транзакции
+		err := createBatchFunc(ctx, order, result, &hadExisting)(s.r)
 		if err != nil {
-			return nil, err
+			return nil, hadExisting, err
 		}
 	}
-
 	if ok {
-		err := tx.InTx(ctx, createBatchFunc(ctx, order, result))
+		// с тразакцией
+		err := tx.InTx(ctx, createBatchFunc(ctx, order, result, &hadExisting))
 		if err != nil {
-			return nil, err
+			return nil, hadExisting, err
 		}
 	}
 	// Формируем ответ
@@ -124,18 +125,18 @@ func (s *Service) Batch(ctx context.Context, batch []model.RequestBatchBody) ([]
 	for _, u := range order {
 		link, err := usvc.CreateURL(s.baseURL, result[repository.URL(u)])
 		if err != nil {
-			return nil, wrap(err)
+			return nil, hadExisting, wrap(err)
 		}
 		out = append(out, model.ResponseBatchBody{
 			CorrelationID: corr[repository.URL(u)],
 			ShortURL:      link,
 		})
 	}
-	return out, nil
+	return out, hadExisting, nil
 }
 
 // Batch func
-func createBatchFunc(ctx context.Context, order []string, result map[repository.URL]repository.ShortURL) func(r repository.Repository) error {
+func createBatchFunc(ctx context.Context, order []string, result map[repository.URL]repository.ShortURL, hadExisting *bool) func(r repository.Repository) error {
 	const retry = 6
 	wrap := func(err error) error { return fmt.Errorf("service batch: %w", err) }
 
@@ -151,6 +152,9 @@ func createBatchFunc(ctx context.Context, order []string, result map[repository.
 		existing, err := br.GetByURLs(ctx, remaining)
 		if err != nil {
 			return wrap(err)
+		}
+		if len(existing) > 0 {
+			*hadExisting = true
 		}
 		for _, rec := range existing {
 			result[rec.URL] = rec.ShortURL
@@ -213,8 +217,8 @@ func urlsDiff(urls []string, records []repository.Record) []string {
 	}
 	out := make([]string, 0, len(urls))
 	for _, u := range urls {
-		if _, ok := existSet[string(u)]; !ok {
-			out = append(out, string(u))
+		if _, ok := existSet[u]; !ok {
+			out = append(out, u)
 		}
 	}
 	return out

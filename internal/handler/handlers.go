@@ -61,7 +61,11 @@ func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
+		if res.Exists {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
 		_, _ = w.Write([]byte(res.Link))
 	}
 }

@@ -47,7 +47,11 @@ func ShortenAPIHandler(svc *shortener.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
+		if res.Exists {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
 		_, _ = w.Write(b)
 	}
 }

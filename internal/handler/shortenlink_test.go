@@ -87,7 +87,7 @@ func TestShortenLinkHandler(t *testing.T) {
 					Times(0)
 			},
 			want: want{
-				statusCode:  http.StatusCreated,
+				statusCode:  http.StatusConflict,
 				contentType: "text/plain",
 				bodyCheck: func(t *testing.T, body string) {
 					// Ожидается полный URL: baseURL + "/abc123"
