@@ -10,7 +10,7 @@ import (
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 )
 
-func ShortenBatchAPIHandler(svc *shortener.Service, baseURL string) http.HandlerFunc {
+func ShortenBatchAPIHandler(svc *shortener.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(contentTypeKey) != applicationJSONValue {
 			w.WriteHeader(http.StatusBadRequest)

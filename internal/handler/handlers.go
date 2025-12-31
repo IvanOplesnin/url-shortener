@@ -29,7 +29,7 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
 
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
-	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc, baseURL))
+	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc))
 	router.Get("/ping", PingHandler(p))
 
 

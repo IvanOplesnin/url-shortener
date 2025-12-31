@@ -112,8 +112,6 @@ func TestShortenApiHandler(t *testing.T) {
 				m.EXPECT().Add(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
 			want: want{
-				// здесь заложим желаемое поведение: 400 и пустое тело
-				// текущий хендлер ничего не пишет вообще → тест как раз подсветит это
 				statusCode:  http.StatusBadRequest,
 				contentType: "",
 				bodyCheck: func(t *testing.T, body []byte) {
@@ -200,7 +198,7 @@ func TestShortenApiHandler(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			
+
 			newService := shortener.New(repository, baseURL)
 
 			h := ShortenAPIHandler(newService)
