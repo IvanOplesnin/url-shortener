@@ -1,0 +1,31 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: 
+      - internal/repository/psql/queries
+    schema: 
+      - migrations/schema/00001_init_db.sql
+    gen:
+      go:
+        package: query
+        out: internal/repository/psql/query
+        sql_package: pgx/v5
+      
+        overrides:
+            - column: alias_url.url
+              go_type:
+                import: "github.com/IvanOplesnin/url-shortener/internal/repository"
+                type: "URL"
+
+            - column: alias_url.short_url
+              go_type:
+                import: "github.com/IvanOplesnin/url-shortener/internal/repository"
+                type: "ShortURL"
+            
+            - db_type: "timestamptz"
+              go_type:
+                import: "time"
+                type: "Time"
+        rename:
+          short_url: ShortURL
+          url: URL

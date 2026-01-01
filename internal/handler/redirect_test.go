@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
-	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
+	mock_repo "github.com/IvanOplesnin/url-shortener/mock"
 	"go.uber.org/mock/gomock"
 )
 
@@ -37,7 +37,7 @@ func TestRedirectHandler(t *testing.T) {
 		name      string                    // Название теста — описывает сценарий
 		method    string                    // HTTP-метод запроса
 		path      string                    // Путь запроса (включая базовый URL)
-		setupMock func(*mock_repo.MockRepo) // Мок-хранилище с предустановленным поведением
+		setupMock func(*mock_repo.MockRepository) // Мок-хранилище с предустановленным поведением
 		want      want                      // Ожидаемые результаты
 	}{
 		// Тест 1: успешный редирект
@@ -45,8 +45,8 @@ func TestRedirectHandler(t *testing.T) {
 			name:   "success redirect",  // Описание: успешный переход по короткой ссылке
 			method: http.MethodGet,      // Ожидается GET-запрос
 			path:   baseURL + "/abc123", // Запрос по адресу вида http://localhost:8080/abc123
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Get(repo.ShortURL("abc123")).Return(repo.URL("https://google.com"), nil).Times(1)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Get(gomock.Any(), repo.ShortURL("abc123")).Return(repo.URL("https://google.com"), nil).Times(1)
 			},
 			want: want{
 				statusCode: http.StatusTemporaryRedirect, // Ожидается временный редирект (307)
@@ -58,8 +58,8 @@ func TestRedirectHandler(t *testing.T) {
 			name:   "not found",         // Описание: запрашиваемая короткая ссылка отсутствует
 			method: http.MethodGet,      // GET-запрос
 			path:   baseURL + "/abc123", // Аналогичный путь
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Get(repo.ShortURL("abc123")).Return(repo.URL(""), repo.ErrNotFoundURL).Times(1)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Get(gomock.Any(), repo.ShortURL("abc123")).Return(repo.URL(""), repo.ErrNotFoundURL).Times(1)
 			},
 			want: want{
 				statusCode: http.StatusNotFound, // Ожидается статус 404
@@ -74,7 +74,7 @@ func TestRedirectHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			storage := mock_repo.NewMockStorage(ctrl)
+			storage := mock_repo.NewMockRepository(ctrl)
 
 			if tt.setupMock != nil {
 				tt.setupMock(storage)
@@ -89,7 +89,7 @@ func TestRedirectHandler(t *testing.T) {
 			// InitHandlers настраивает маршруты, включая обработчик редиректа
 			newService := shortener.New(storage, baseURL)
 
-			mux := InitHandlers(newService, baseURL)
+			mux := InitHandlers(newService, baseURL, nil)
 			// Обработка запроса
 			mux.ServeHTTP(rr, req)
 

@@ -10,9 +10,9 @@ import (
 
 	"github.com/IvanOplesnin/url-shortener/internal/model"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
-	mock_repo "github.com/IvanOplesnin/url-shortener/internal/repository/mock_repo"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
+	mock_repo "github.com/IvanOplesnin/url-shortener/mock"
 	"go.uber.org/mock/gomock"
 )
 
@@ -30,7 +30,7 @@ func TestShortenApiHandler(t *testing.T) {
 		method      string
 		body        []byte
 		contentType string
-		setupMock   func(m *mock_repo.MockRepo)
+		setupMock   func(m *mock_repo.MockRepository)
 		want        want
 	}{
 		{
@@ -38,14 +38,14 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_repo.MockRepo) {
+			setupMock: func(m *mock_repo.MockRepository) {
 				m.EXPECT().
-					Search(repo.URL("https://google.com")).
+					Search(gomock.Any(), repo.URL("https://google.com")).
 					Return(repo.ShortURL(""), repo.ErrNotFoundURL).
 					Times(1)
 
 				m.EXPECT().
-					Add(gomock.Any(), repo.URL("https://google.com")).
+					Add(gomock.Any(), gomock.Any(), repo.URL("https://google.com")).
 					Return(nil).
 					Times(1)
 			},
@@ -74,18 +74,18 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_repo.MockRepo) {
+			setupMock: func(m *mock_repo.MockRepository) {
 				m.EXPECT().
-					Search(repo.URL("https://google.com")).
+					Search(gomock.Any(), repo.URL("https://google.com")).
 					Return(repo.ShortURL("abc123"), nil).
 					Times(1)
 
 				m.EXPECT().
-					Add(gomock.Any(), gomock.Any()).
+					Add(gomock.Any(), gomock.Any(), gomock.Any()).
 					Times(0)
 			},
 			want: want{
-				statusCode:  http.StatusCreated, // если переделаешь логику на 409, поменяй здесь
+				statusCode:  http.StatusConflict, // если переделаешь логику на 409, поменяй здесь
 				contentType: applicationJSONValue,
 				bodyCheck: func(t *testing.T, body []byte) {
 					t.Helper()
@@ -107,13 +107,11 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"}`),
 			contentType: "text/plain", // не application/json
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Search(gomock.Any()).Times(0)
-				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Search(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Add(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
 			want: want{
-				// здесь заложим желаемое поведение: 400 и пустое тело
-				// текущий хендлер ничего не пишет вообще → тест как раз подсветит это
 				statusCode:  http.StatusBadRequest,
 				contentType: "",
 				bodyCheck: func(t *testing.T, body []byte) {
@@ -131,9 +129,9 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"https://google.com"`), // нет закрывающей }
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Search(gomock.Any()).Times(0)
-				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Search(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Add(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
@@ -153,9 +151,9 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Search(gomock.Any()).Times(0)
-				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Search(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Add(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
@@ -170,9 +168,9 @@ func TestShortenApiHandler(t *testing.T) {
 			method:      http.MethodPost,
 			body:        []byte(`{"url":"not\a\valid-url"}`),
 			contentType: applicationJSONValue,
-			setupMock: func(m *mock_repo.MockRepo) {
-				m.EXPECT().Search(gomock.Any()).Times(0)
-				m.EXPECT().Add(gomock.Any(), gomock.Any()).Times(0)
+			setupMock: func(m *mock_repo.MockRepository) {
+				m.EXPECT().Search(gomock.Any(), gomock.Any()).Times(0)
+				m.EXPECT().Add(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
 			want: want{
 				statusCode:  http.StatusBadRequest,
@@ -187,7 +185,7 @@ func TestShortenApiHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			repository := mock_repo.NewMockStorage(ctrl)
+			repository := mock_repo.NewMockRepository(ctrl)
 
 			if tt.setupMock != nil {
 				tt.setupMock(repository)
@@ -200,7 +198,7 @@ func TestShortenApiHandler(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			
+
 			newService := shortener.New(repository, baseURL)
 
 			h := ShortenAPIHandler(newService)

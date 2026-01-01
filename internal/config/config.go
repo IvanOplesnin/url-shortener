@@ -16,6 +16,7 @@ const (
 	AddressKEY  = "SERVER_ADDRESS"
 	BaseURLKEY  = "BASE_URL"
 	FilePathKEY = "FILE_STORAGE_PATH"
+	DatabaseDSN = "DATABASE_DSN"
 )
 
 type Server struct {
@@ -70,6 +71,7 @@ type Config struct {
 	BaseURL  string `env:"BASE_URL"`
 	Logger   Logger
 	FilePath string `env:"FILE_STORAGE_PATH"`
+	DBDSN    string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) String() string {
@@ -99,6 +101,7 @@ func GetConfig() (*Config, error) {
 	flag.Var(&server, "a", serverFlagUsage)
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, baseURLFlagUsage)
 	flag.StringVar(&cfg.FilePath, "f", cfg.FilePath, "File path storage")
+	flag.StringVar(&cfg.DBDSN, "d", cfg.DBDSN, "Databse DSN")
 
 	flag.Parse()
 
@@ -114,6 +117,10 @@ func GetConfig() (*Config, error) {
 
 	if filePath, ok := os.LookupEnv(FilePathKEY); ok {
 		cfg.FilePath = filePath
+	}
+
+	if dsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
+		cfg.DBDSN = dsn
 	}
 
 	cfg.Server = server
