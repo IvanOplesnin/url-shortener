@@ -7,41 +7,49 @@ package query
 
 import (
 	"context"
+	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
 const addMany = `-- name: AddMany :many
 WITH input AS (
-  SELECT s.short_url, u.url
-  FROM unnest($1::text[]) WITH ORDINALITY AS s(short_url, ord)
-  JOIN unnest($2::text[])      WITH ORDINALITY AS u(url, ord)
+  SELECT
+    s.short_url,
+    u.url,
+    c.created_at
+  FROM unnest($1::text[])        WITH ORDINALITY AS s(short_url, ord)
+  JOIN unnest($2::text[])             WITH ORDINALITY AS u(url, ord)
+    USING (ord)
+  JOIN unnest($3::timestamptz[]) WITH ORDINALITY AS c(created_at, ord)
     USING (ord)
 ),
 inserted AS (
-  INSERT INTO alias_url (short_url, "url")
-  SELECT short_url, url
+  INSERT INTO alias_url (short_url, "url", created_at)
+  SELECT short_url, url, created_at
   FROM input
   ON CONFLICT DO NOTHING
-  RETURNING id, short_url, "url"
+  RETURNING id, short_url, "url", created_at
 )
-SELECT id, short_url, "url"
+SELECT id, short_url, "url", created_at
 FROM inserted
 `
 
 type AddManyParams struct {
-	ShortUrls []string
-	Urls      []string
+	ShortUrls  []string
+	Urls       []string
+	CreatedAts []time.Time
 }
 
 type AddManyRow struct {
-	ID       int64
-	ShortURL string
-	URL      string
+	ID        int64
+	ShortURL  string
+	URL       string
+	CreatedAt time.Time
 }
 
 func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow, error) {
-	rows, err := q.db.Query(ctx, addMany, arg.ShortUrls, arg.Urls)
+	rows, err := q.db.Query(ctx, addMany, arg.ShortUrls, arg.Urls, arg.CreatedAts)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +57,12 @@ func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow,
 	var items []AddManyRow
 	for rows.Next() {
 		var i AddManyRow
-		if err := rows.Scan(&i.ID, &i.ShortURL, &i.URL); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShortURL,
+			&i.URL,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

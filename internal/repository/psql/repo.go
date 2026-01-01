@@ -55,7 +55,8 @@ func (r *Repo) Search(ctx context.Context, url repository.URL) (repository.Short
 func (r *Repo) Add(ctx context.Context, shortURL repository.ShortURL, url repository.URL) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	params := query.AddParams{ShortURL: shortURL, URL: url}
+	now := time.Now().UTC()
+	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now}
 	if err := r.queries.Add(ctx, params); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -121,13 +122,17 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 	} else {
 		shortURLs := make([]string, 0, len(records))
 		urls := make([]string, 0, len(records))
+		times := make([]time.Time, 0, len(records))
+		now := time.Now().UTC()
 		for _, rec := range records {
 			shortURLs = append(shortURLs, string(rec.ShortURL))
 			urls = append(urls, string(rec.URL))
+			times = append(times, now)
 		}
 		paramsAddMany := query.AddManyParams{
-			ShortUrls: shortURLs,
-			Urls:      urls,
+			ShortUrls:  shortURLs,
+			Urls:       urls,
+			CreatedAts: times,
 		}
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()

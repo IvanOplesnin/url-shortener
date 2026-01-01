@@ -4,6 +4,8 @@ CREATE TABLE alias_url (
     id BIGSERIAL PRIMARY KEY,
     "url" VARCHAR NOT NULL,
     short_url VARCHAR NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    
     CONSTRAINT alias_url_url_uk UNIQUE ("url"),
     CONSTRAINT alias_url_short_url_uk UNIQUE (short_url)
 );

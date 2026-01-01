@@ -7,25 +7,27 @@ package query
 
 import (
 	"context"
+	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
 const add = `-- name: Add :exec
 INSERT INTO alias_url (
-    short_url, "url"
+    short_url, "url", created_at
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 `
 
 type AddParams struct {
-	ShortURL repository.ShortURL
-	URL      repository.URL
+	ShortURL  repository.ShortURL
+	URL       repository.URL
+	CreatedAt time.Time
 }
 
 func (q *Queries) Add(ctx context.Context, arg AddParams) error {
-	_, err := q.db.Exec(ctx, add, arg.ShortURL, arg.URL)
+	_, err := q.db.Exec(ctx, add, arg.ShortURL, arg.URL, arg.CreatedAt)
 	return err
 }
 
@@ -43,7 +45,7 @@ func (q *Queries) Get(ctx context.Context, shortUrl repository.ShortURL) (reposi
 }
 
 const getAllRecords = `-- name: GetAllRecords :many
-SELECT id, url, short_url 
+SELECT id, url, short_url, created_at 
 FROM alias_url
 ORDER BY id
 `
@@ -57,7 +59,12 @@ func (q *Queries) GetAllRecords(ctx context.Context) ([]AliasUrl, error) {
 	var items []AliasUrl
 	for rows.Next() {
 		var i AliasUrl
-		if err := rows.Scan(&i.ID, &i.URL, &i.ShortURL); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.URL,
+			&i.ShortURL,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

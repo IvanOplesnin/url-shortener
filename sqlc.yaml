@@ -21,6 +21,11 @@ sql:
               go_type:
                 import: "github.com/IvanOplesnin/url-shortener/internal/repository"
                 type: "ShortURL"
+            
+            - db_type: "timestamptz"
+              go_type:
+                import: "time"
+                type: "Time"
         rename:
           short_url: ShortURL
           url: URL

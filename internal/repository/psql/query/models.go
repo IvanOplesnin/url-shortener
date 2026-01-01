@@ -5,11 +5,14 @@
 package query
 
 import (
+	"time"
+
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
 type AliasUrl struct {
-	ID       int64
-	URL      repository.URL
-	ShortURL repository.ShortURL
+	ID        int64
+	URL       repository.URL
+	ShortURL  repository.ShortURL
+	CreatedAt time.Time
 }

@@ -52,6 +52,6 @@ func ShortenAPIHandler(svc *shortener.Service) http.HandlerFunc {
 		} else {
 			w.WriteHeader(http.StatusCreated)
 		}
-		_, _ = w.Write(b)
+		w.Write(b)
 	}
 }

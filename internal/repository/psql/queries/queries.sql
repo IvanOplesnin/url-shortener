@@ -11,9 +11,9 @@ WHERE short_url = $1;
 
 -- name: Add :exec
 INSERT INTO alias_url (
-    short_url, "url"
+    short_url, "url", created_at
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 );
 
 -- name: GetAllRecords :many

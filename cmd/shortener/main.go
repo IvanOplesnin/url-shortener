@@ -31,12 +31,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err := runMigrate(cfg); err != nil {
-		log.Fatal(err)
-	}
 
 	err = logger.SetupLogger(cfg.Logger.Level, cfg.Logger.Format)
 	if err != nil {
+		log.Fatal(err)
+	}
+	if err := runMigrate(cfg); err != nil {
 		log.Fatal(err)
 	}
 
@@ -85,7 +85,7 @@ func runMigrate(cfg *config.Config) error {
 
 	if err := migrate.Up(db); err != nil {
 		if isInsufficientPrivilege(err) {
-			log.Printf("migrations skipped (insufficient privileges): %v", err)
+			logger.Log.Infof("migrations skipped (insufficient privileges): %v", err)
 			return nil
 		}
 		return fmt.Errorf("migrate up: %w", err)
