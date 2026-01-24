@@ -177,7 +177,7 @@ func TestBatchApiShortenHandler(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 
-			svc := shortener.New(repo, baseURL)
+			svc := shortener.New(repo, baseURL, []byte{})
 			h := ShortenBatchAPIHandler(svc)
 
 			h.ServeHTTP(rr, req)

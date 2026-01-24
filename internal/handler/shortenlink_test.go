@@ -189,7 +189,7 @@ func TestShortenLinkHandler(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Инициализация обработчика с моком хранилища и базовым URL
-			newService := shortener.New(storage, baseURL)
+			newService := shortener.New(storage, baseURL, []byte{})
 
 			h := ShortenLinkHandler(newService)
 			// Обработка запроса

@@ -8,11 +8,17 @@ import (
 	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AliasUrl struct {
 	ID        int64
+	UserID    pgtype.Int8
 	URL       repository.URL
 	ShortURL  repository.ShortURL
 	CreatedAt time.Time
+}
+
+type User struct {
+	ID int64
 }

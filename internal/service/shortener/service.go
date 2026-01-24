@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	"github.com/IvanOplesnin/url-shortener/internal/model"
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 	usvc "github.com/IvanOplesnin/url-shortener/internal/service/url"
@@ -13,6 +16,7 @@ import (
 type Service struct {
 	r       repository.Repository
 	baseURL string
+	secret  []byte
 }
 
 type Result struct {
@@ -21,8 +25,8 @@ type Result struct {
 	Exists bool
 }
 
-func New(r repository.Repository, baseURL string) *Service {
-	return &Service{r: r, baseURL: baseURL}
+func New(r repository.Repository, baseURL string, secret []byte) *Service {
+	return &Service{r: r, baseURL: baseURL, secret: secret}
 }
 
 func (s *Service) Shorten(ctx context.Context, u repository.URL) (Result, error) {
@@ -207,6 +211,83 @@ func createBatchFunc(ctx context.Context, order []string, result map[repository.
 		return nil
 	}
 	return batch
+}
+
+type Claims struct {
+	UserID int64
+}
+
+func (c *Claims) String() string {
+	return fmt.Sprintf("%v", c.UserID)
+}
+
+type JwtClaims struct {
+	Claims
+	jwt.RegisteredClaims
+}
+
+func (s *Service) CreateToken(ctx context.Context) (string, *Claims, error) {
+	ur, ok := s.r.(repository.UserRepo)
+	if !ok {
+		logger.Log.Debugf("no UserRepo")
+		return "", &Claims{}, fmt.Errorf("repository doesn't support user methods")
+	}
+	userID, err := ur.AddUser(ctx)
+	if err != nil {
+		logger.Log.Errorf("error in AddUser: %v", err.Error())
+		return "", &Claims{}, fmt.Errorf("create token error: %w", err)
+	}
+	claim := JwtClaims{
+		Claims:           Claims{UserID: userID},
+		RegisteredClaims: jwt.RegisteredClaims{},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
+	tokenString, err := token.SignedString([]byte(s.secret))
+	if err != nil {
+		logger.Log.Errorf("error in create Token: %v", err.Error())
+		return "", &Claims{}, fmt.Errorf("create token error: %w", err)
+	}
+	return tokenString, &Claims{UserID: userID}, nil
+}
+
+func (s *Service) VerifyToken(ctx context.Context, token string) (*Claims, error) {
+	ur, ok := s.r.(repository.UserRepo)
+	if !ok {
+		return &Claims{}, fmt.Errorf("repository doesn't support user methods")
+	}
+
+	claims := &JwtClaims{}
+
+	keyFunc := func(t *jwt.Token) (any, error) {
+		if t.Method == nil || t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return s.secret, nil
+	}
+	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+
+	tok, err := parser.ParseWithClaims(token, claims, keyFunc)
+	if err != nil {
+		return &Claims{}, fmt.Errorf("parse/verify token error: %w", err)
+	}
+
+	if tok == nil || !tok.Valid {
+		return &Claims{}, fmt.Errorf("invalid token")
+	}
+
+	if claims.UserID == 0 {
+		return &Claims{}, fmt.Errorf("missing user id in token claims")
+	}
+
+	_, err = ur.GetUser(ctx, claims.UserID)
+	if errors.Is(err, repository.ErrNotUserFound) {
+		return &Claims{}, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return &Claims{}, fmt.Errorf("get user error: %w", err)
+	}
+
+	return &Claims{UserID: claims.UserID}, nil
 }
 
 // urlsDiff возвращает urls, которых нет среди records (по URL), сохраняя порядок.

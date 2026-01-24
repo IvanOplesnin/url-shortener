@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const add = `-- name: Add :exec
 INSERT INTO alias_url (
-    short_url, "url", created_at
+    short_url, "url", created_at, user_id
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 `
 
@@ -24,11 +25,29 @@ type AddParams struct {
 	ShortURL  repository.ShortURL
 	URL       repository.URL
 	CreatedAt time.Time
+	UserID    pgtype.Int8
 }
 
 func (q *Queries) Add(ctx context.Context, arg AddParams) error {
-	_, err := q.db.Exec(ctx, add, arg.ShortURL, arg.URL, arg.CreatedAt)
+	_, err := q.db.Exec(ctx, add,
+		arg.ShortURL,
+		arg.URL,
+		arg.CreatedAt,
+		arg.UserID,
+	)
 	return err
+}
+
+const addUser = `-- name: AddUser :one
+INSERT INTO users DEFAULT VALUES
+RETURNING id
+`
+
+func (q *Queries) AddUser(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, addUser)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const get = `-- name: Get :one
@@ -45,20 +64,27 @@ func (q *Queries) Get(ctx context.Context, shortUrl repository.ShortURL) (reposi
 }
 
 const getAllRecords = `-- name: GetAllRecords :many
-SELECT id, url, short_url, created_at 
+SELECT  id, "url", short_url, created_at
 FROM alias_url
 ORDER BY id
 `
 
-func (q *Queries) GetAllRecords(ctx context.Context) ([]AliasUrl, error) {
+type GetAllRecordsRow struct {
+	ID        int64
+	URL       repository.URL
+	ShortURL  repository.ShortURL
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetAllRecords(ctx context.Context) ([]GetAllRecordsRow, error) {
 	rows, err := q.db.Query(ctx, getAllRecords)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []AliasUrl
+	var items []GetAllRecordsRow
 	for rows.Next() {
-		var i AliasUrl
+		var i GetAllRecordsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.URL,
@@ -73,6 +99,19 @@ func (q *Queries) GetAllRecords(ctx context.Context) ([]AliasUrl, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id
+FROM users
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUser(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
+	err := row.Scan(&id)
+	return id, err
 }
 
 const search = `-- name: Search :one

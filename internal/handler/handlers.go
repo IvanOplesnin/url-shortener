@@ -18,7 +18,7 @@ const (
 	textPlainValue       = "text/plain"
 )
 
-func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
+func InitHandlers(svc *shortener.Service, baseURL string, p Pinger, mwTokenCheck func(http.Handler) http.Handler) *chi.Mux {
 	router := chi.NewRouter()
 
 	baseP := u.BasePath(baseURL)
@@ -26,12 +26,14 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
 	router.Use(WithLogging)
 	router.Use(CompressGzip)
 	router.Use(UncompressGzip)
+	if mwTokenCheck != nil {
+		router.Use(CheckCookieJWTAndSet(svc))
+	}
 
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
 	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc))
 	router.Get("/ping", PingHandler(p))
-
 
 	router.Route(
 		baseP, func(router chi.Router) {

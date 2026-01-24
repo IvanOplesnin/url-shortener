@@ -4,6 +4,7 @@ go 1.24.11
 
 require (
 	github.com/go-chi/chi/v5 v5.2.3
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/sirupsen/logrus v1.9.3

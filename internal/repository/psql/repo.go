@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
 	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/psql/query"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -56,7 +58,16 @@ func (r *Repo) Add(ctx context.Context, shortURL repository.ShortURL, url reposi
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	now := time.Now().UTC()
-	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now}
+	var userID pgtype.Int8
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	logger.Log.Debugf("repo.Add claims: %s", claims)
+	if ok {
+		userID = pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+	} else {
+		userID = pgtype.Int8{Valid: false}
+	}
+	logger.Log.Debug(userID)
+	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now, UserID: userID}
 	if err := r.queries.Add(ctx, params); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -124,6 +135,13 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 		urls := make([]string, 0, len(records))
 		times := make([]time.Time, 0, len(records))
 		now := time.Now().UTC()
+		var userID pgtype.Int8
+		claims, ok := handlers.ClaimsFromContext(ctx)
+		if ok {
+			userID = pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+		} else {
+			userID = pgtype.Int8{Valid: false}
+		}
 		for _, rec := range records {
 			shortURLs = append(shortURLs, string(rec.ShortURL))
 			urls = append(urls, string(rec.URL))
@@ -133,6 +151,7 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 			ShortUrls:  shortURLs,
 			Urls:       urls,
 			CreatedAts: times,
+			UserID:     userID,
 		}
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
@@ -155,6 +174,22 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 	}
 }
 
+
+func (r *Repo) AddUser(ctx context.Context) (int64, error) {
+	return r.queries.AddUser(ctx)
+}
+
+func (r *Repo) GetUser(ctx context.Context, userID int64) (int64, error) {
+	userId, err :=  r.queries.GetUser(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, repository.ErrNotUserFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("psql error GetUser: %w", err)
+	}
+	return userId, nil
+}
+
 // InTx(ctx context.Context, fn func(r Repository) error) error
 func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error) error {
 	tx, err := r.db.Begin(ctx)
@@ -173,3 +208,4 @@ func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error)
 	}
 	return nil
 }
+
