@@ -96,7 +96,13 @@ func GetConfig() (*Config, error) {
 	}
 	cfg.BaseURL = "http://localhost:8080/"
 	cfg.Logger.Level = "Debug"
+	if level, ok := os.LookupEnv("LOG_LEVEL"); ok {
+		cfg.Logger.Level = level
+	}
 	cfg.Logger.Format = logger.Text
+	if format, ok := os.LookupEnv("LOG_FORMAT"); ok {
+		cfg.Logger.Format = logger.Formatter(format)
+	}
 	cfg.FilePath = "data.json"
 
 	flag.Var(&server, "a", serverFlagUsage)

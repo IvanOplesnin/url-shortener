@@ -180,14 +180,14 @@ func (r *Repo) AddUser(ctx context.Context) (int64, error) {
 }
 
 func (r *Repo) GetUser(ctx context.Context, userID int64) (int64, error) {
-	userId, err :=  r.queries.GetUser(ctx, userID)
+	userID, err :=  r.queries.GetUser(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, repository.ErrNotUserFound
 	}
 	if err != nil {
 		return 0, fmt.Errorf("psql error GetUser: %w", err)
 	}
-	return userId, nil
+	return userID, nil
 }
 
 func (r *Repo) UserURLs(ctx context.Context) ([]repository.Record, error) {

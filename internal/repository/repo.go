@@ -13,6 +13,7 @@ var ErrNotFoundURL = errors.New("not found URL")
 var ErrAlreadyExists = errors.New("already exists URL")
 var ErrShortURLAlreadyExists = errors.New("already exist ShortURL")
 var ErrNotUserFound = errors.New("not found user")
+var ErrNotImlementedUserRepo = errors.New("not implemented user repo")
 
 type Repository interface {
 	Add(ctx context.Context, key ShortURL, value URL) error

@@ -116,7 +116,7 @@ func (r *Repo) GetUser(ctx context.Context, id int64) (int64, error) {
 		return r.userRepo.GetUser(ctx, id)
 	} else {
 		logger.Log.Errorf("no implement userRepo")
-		return 0, fmt.Errorf("no implement userRepo in repo")
+		return 0, repo.ErrNotImlementedUserRepo
 	}
 }
 
@@ -125,6 +125,6 @@ func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
 		return r.userRepo.UserURLs(ctx)
 	} else {
 		logger.Log.Errorf("no implement userRepo")
-		return nil, fmt.Errorf("no implement userRepo in repo")
+		return nil, repo.ErrNotImlementedUserRepo
 	}
 }

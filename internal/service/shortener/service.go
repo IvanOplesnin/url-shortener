@@ -238,7 +238,7 @@ func (s *Service) CreateToken(ctx context.Context) (string, *Claims, error) {
 	userID, err := ur.AddUser(ctx)
 	if err != nil {
 		logger.Log.Errorf("error in AddUser: %v", err.Error())
-		return "", &Claims{}, fmt.Errorf("create token error: %w", err)
+		return "", &Claims{}, fmt.Errorf("create token error in add_user: %w", err)
 	}
 	claim := JwtClaims{
 		Claims:           Claims{UserID: userID},
@@ -248,7 +248,7 @@ func (s *Service) CreateToken(ctx context.Context) (string, *Claims, error) {
 	tokenString, err := token.SignedString([]byte(s.secret))
 	if err != nil {
 		logger.Log.Errorf("error in create Token: %v", err.Error())
-		return "", &Claims{}, fmt.Errorf("create token error: %w", err)
+		return "", &Claims{}, fmt.Errorf("create token error in signed_string: %w", err)
 	}
 	return tokenString, &Claims{UserID: userID}, nil
 }
