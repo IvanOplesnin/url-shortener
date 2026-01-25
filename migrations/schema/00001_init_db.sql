@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS alias_url (
     short_url   VARCHAR NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
 
-    CONSTRAINT alias_url_user_fk      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT alias_url_user_url_uk  UNIQUE (user_id, "url"),
     CONSTRAINT alias_url_short_url_uk UNIQUE (short_url)
 );
