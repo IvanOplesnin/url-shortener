@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/logger"
@@ -15,19 +16,15 @@ type contextKey int
 
 const claimsKey contextKey = iota
 
-
-
 type TokenService interface {
 	CreateToken(ctx context.Context) (string, *shortener.Claims, error)
 	VerifyToken(ctx context.Context, token string) (*shortener.Claims, error)
 }
 
-
 func ClaimsFromContext(ctx context.Context) (*shortener.Claims, bool) {
 	c, ok := ctx.Value(claimsKey).(*shortener.Claims)
 	return c, ok
 }
-
 
 func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 	CheckCookie := func(next http.Handler) http.Handler {
@@ -47,7 +44,7 @@ func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 					ctx := context.WithValue(ctx, claimsKey, claims)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
-				} else if errors.Is(err, shortener.ErrNotUserFound) || errors.Is(err, shortener.ErrNotUserID)  {
+				} else if errors.Is(err, shortener.ErrNotUserFound) || errors.Is(err, shortener.ErrNotUserID) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				} else {
@@ -56,7 +53,8 @@ func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 			}
 			newToken, newClaims, err := svc.CreateToken(ctx)
 			if err != nil {
-				http.Error(w, "failed to create token", http.StatusInternalServerError)
+				errorString := fmt.Sprintf("failed to create token: %s", err.Error())
+				http.Error(w, errorString, http.StatusInternalServerError)
 				return
 			}
 			if newToken != "" {

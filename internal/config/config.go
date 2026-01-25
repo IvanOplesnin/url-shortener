@@ -95,7 +95,7 @@ func GetConfig() (*Config, error) {
 		Port: 8080,
 	}
 	cfg.BaseURL = "http://localhost:8080/"
-	cfg.Logger.Level = "Debug"
+	cfg.Logger.Level = "debug"
 	if level, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		cfg.Logger.Level = level
 	}
