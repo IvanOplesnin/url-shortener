@@ -236,6 +236,9 @@ func (s *Service) CreateToken(ctx context.Context) (string, *Claims, error) {
 		return "", &Claims{}, fmt.Errorf("repository doesn't support user methods")
 	}
 	userID, err := ur.AddUser(ctx)
+	if err == repository.ErrNotImlementedUserRepo {
+		return "", &Claims{}, nil
+	}
 	if err != nil {
 		logger.Log.Errorf("error in AddUser: %v", err.Error())
 		return "", &Claims{}, fmt.Errorf("create token error in add_user: %w", err)

@@ -66,7 +66,7 @@ func createRepo(cfg *config.Config) (*persisted.Repo, *pgxpool.Pool, error) {
 		return persisterdRepo, db, nil
 	}
 	repo := inmemory.NewRepo()
-	persisterdRepo, err := persisted.New(repo, repo, repo, fileStorage, repo, nil, repo, nil)
+	persisterdRepo, err := persisted.New(repo, repo, repo, fileStorage, repo, nil, repo, repo)
 	if err != nil {
 		return nil, nil, err
 	}

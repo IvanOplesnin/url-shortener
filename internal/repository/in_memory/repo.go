@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
@@ -12,12 +13,22 @@ type Repo struct {
 	mu        sync.RWMutex
 	dataShort map[repo.ShortURL]repo.URL
 	dataURL   map[repo.URL]repo.ShortURL
+
+	// users
+	nextUserID int64
+	users      map[int64]struct{}
+
+	// user-specific urls: userID -> (short -> url)
+	userShort map[int64]map[repo.ShortURL]repo.URL
 }
 
 func NewRepo() *Repo {
 	return &Repo{
-		dataShort: make(map[repo.ShortURL]repo.URL),
-		dataURL:   make(map[repo.URL]repo.ShortURL),
+		dataShort:  make(map[repo.ShortURL]repo.URL),
+		dataURL:    make(map[repo.URL]repo.ShortURL),
+		nextUserID: 0,
+		users:      make(map[int64]struct{}),
+		userShort:  make(map[int64]map[repo.ShortURL]repo.URL),
 	}
 }
 
@@ -31,7 +42,7 @@ func (r *Repo) Get(_ context.Context, shortURL repo.ShortURL) (repo.URL, error) 
 	return "", repo.ErrNotFoundShortURL
 }
 
-func (r *Repo) Add(_ context.Context, shortURL repo.ShortURL, url repo.URL) error {
+func (r *Repo) Add(ctx context.Context, shortURL repo.ShortURL, url repo.URL) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -43,6 +54,16 @@ func (r *Repo) Add(_ context.Context, shortURL repo.ShortURL, url repo.URL) erro
 	}
 	r.dataShort[shortURL] = url
 	r.dataURL[url] = shortURL
+
+	if claims, ok := handlers.ClaimsFromContext(ctx); ok && claims != nil && claims.UserID != 0 {
+		if _, ok := r.users[claims.UserID]; ok {
+			if r.userShort[claims.UserID] == nil {
+				r.userShort[claims.UserID] = make(map[repo.ShortURL]repo.URL)
+			}
+			r.userShort[claims.UserID][shortURL] = url
+		}
+	}
+
 	return nil
 }
 
@@ -111,9 +132,14 @@ func (r *Repo) GetByURLs(_ context.Context, urls []string) ([]repo.Record, error
 	return out, nil
 }
 
-func (r *Repo) AddMany(_ context.Context, records []repo.ArgAddMany) ([]repo.Record, error) {
+func (r *Repo) AddMany(ctx context.Context, records []repo.ArgAddMany) ([]repo.Record, error) {
 	if len(records) == 0 {
 		return []repo.Record{}, nil
+	}
+
+	var userID int64
+	if claims, ok := handlers.ClaimsFromContext(ctx); ok && claims != nil {
+		userID = claims.UserID
 	}
 
 	r.mu.Lock()
@@ -131,9 +157,69 @@ func (r *Repo) AddMany(_ context.Context, records []repo.ArgAddMany) ([]repo.Rec
 		r.dataShort[rec.ShortURL] = rec.URL
 		r.dataURL[rec.URL] = rec.ShortURL
 
+		if userID != 0 {
+			if _, ok := r.users[userID]; ok {
+				if r.userShort[userID] == nil {
+					r.userShort[userID] = make(map[repo.ShortURL]repo.URL)
+				}
+				r.userShort[userID][rec.ShortURL] = rec.URL
+			}
+		}
+
 		out = append(out, repo.Record{
 			URL:      rec.URL,
 			ShortURL: rec.ShortURL,
+		})
+	}
+	return out, nil
+}
+
+func (r *Repo) AddUser(_ context.Context) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.nextUserID++
+	id := r.nextUserID
+
+	r.users[id] = struct{}{}
+	r.userShort[id] = make(map[repo.ShortURL]repo.URL)
+
+	return id, nil
+}
+
+func (r *Repo) GetUser(_ context.Context, id int64) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if _, ok := r.users[id]; !ok {
+		return 0, repo.ErrNotUserFound
+	}
+	return id, nil
+}
+
+// UserURLs возвращает ссылки ТЕКУЩЕГО пользователя.
+// userID берём из ctx (его кладёт middleware).
+func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if !ok || claims == nil || claims.UserID == 0 {
+		return nil, repo.ErrNotUserFound
+	}
+
+	userID := claims.UserID
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	m, ok := r.userShort[userID]
+	if !ok || len(m) == 0 {
+		return []repo.Record{}, nil
+	}
+
+	out := make([]repo.Record, 0, len(m))
+	for short, url := range m {
+		out = append(out, repo.Record{
+			ShortURL: short,
+			URL:      url,
 		})
 	}
 	return out, nil
