@@ -20,8 +20,8 @@ type Service struct {
 }
 
 type Result struct {
-	Short  repository.ShortURL `json: "short_url"`
-	Link   string              `json: "original_url"`
+	Short  repository.ShortURL `json:"short_url"`
+	Link   string              `json:"original_url"`
 	Exists bool
 }
 
@@ -309,7 +309,9 @@ func (s *Service) GetUserURLs(ctx context.Context) ([]model.ResponseUserURLs, er
 	result := make([]model.ResponseUserURLs, 0, len(urls))
 	for _, url := range urls {
 		short, err := usvc.CreateURL(s.baseURL, url.ShortURL)
-		if err != nil {return nil, fmt.Errorf("svc.GetUserURLs: %s", err.Error())}
+		if err != nil {
+			return nil, fmt.Errorf("svc.GetUserURLs: %s", err.Error())
+		}
 		result = append(result, model.ResponseUserURLs{
 			URL:      string(url.URL),
 			ShortURL: short,
