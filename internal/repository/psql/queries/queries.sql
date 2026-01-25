@@ -32,3 +32,9 @@ SELECT id
 FROM users
 WHERE id = $1
 LIMIT 1;
+
+
+-- name: UserURLs :many
+SELECT id, short_url, "url"
+FROM alias_url
+WHERE user_id = $1;

@@ -29,6 +29,7 @@ type BatchRepo interface {
 type UserRepo interface {
 	AddUser(ctx context.Context) (int64, error)
 	GetUser(ctx context.Context, id int64) (int64, error)
+	UserURLs(ctx context.Context) ([]Record, error)
 }
 
 type Seeder interface {

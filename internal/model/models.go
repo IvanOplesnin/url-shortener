@@ -16,6 +16,11 @@ type RequestBatchBody struct {
 }
 
 type ResponseBatchBody struct {
-	CorrelationID string              `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
+}
+
+type ResponseUserURLs struct {
+	ShortURL string `json:"short_url"`
+	URL      string `json:"original_url"`
 }

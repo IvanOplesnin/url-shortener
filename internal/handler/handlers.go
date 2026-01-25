@@ -33,6 +33,7 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger, mwTokenCheck
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
 	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc))
+	router.Get("/api/user/urls", UserUrlsHandler(svc))
 	router.Get("/ping", PingHandler(p))
 
 	router.Route(

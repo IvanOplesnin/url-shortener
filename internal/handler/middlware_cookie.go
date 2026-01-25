@@ -47,6 +47,9 @@ func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 					ctx := context.WithValue(ctx, claimsKey, claims)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
+				} else if errors.Is(err, shortener.ErrNotUserFound) || errors.Is(err, shortener.ErrNotUserID)  {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
 				} else {
 					logger.Log.Errorf("verify token error: %s", err.Error())
 				}

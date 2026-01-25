@@ -127,3 +127,35 @@ func (q *Queries) Search(ctx context.Context, url repository.URL) (repository.Sh
 	err := row.Scan(&short_url)
 	return short_url, err
 }
+
+const userURLs = `-- name: UserURLs :many
+SELECT id, short_url, "url"
+FROM alias_url
+WHERE user_id = $1
+`
+
+type UserURLsRow struct {
+	ID       int64
+	ShortURL repository.ShortURL
+	URL      repository.URL
+}
+
+func (q *Queries) UserURLs(ctx context.Context, userID pgtype.Int8) ([]UserURLsRow, error) {
+	rows, err := q.db.Query(ctx, userURLs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserURLsRow
+	for rows.Next() {
+		var i UserURLsRow
+		if err := rows.Scan(&i.ID, &i.ShortURL, &i.URL); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

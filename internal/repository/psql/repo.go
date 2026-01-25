@@ -190,6 +190,30 @@ func (r *Repo) GetUser(ctx context.Context, userID int64) (int64, error) {
 	return userId, nil
 }
 
+func (r *Repo) UserURLs(ctx context.Context) ([]repository.Record, error) {
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("no claims in context")
+	}
+	userID := pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+	urls, err := r.queries.UserURLs(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []repository.Record{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("psql error UserURLs: %w", err)
+	}
+	result := make([]repository.Record, 0, len(urls))
+	for _, url := range urls {
+		result = append(result, repository.Record{
+			ID:       int(url.ID),
+			URL:      repository.URL(url.URL),
+			ShortURL: repository.ShortURL(url.ShortURL),
+		})
+	}
+	return result, nil
+}
+
 // InTx(ctx context.Context, fn func(r Repository) error) error
 func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error) error {
 	tx, err := r.db.Begin(ctx)

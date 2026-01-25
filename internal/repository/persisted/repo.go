@@ -119,3 +119,12 @@ func (r *Repo) GetUser(ctx context.Context, id int64) (int64, error) {
 		return 0, fmt.Errorf("no implement userRepo in repo")
 	}
 }
+
+func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
+	if r.userRepo != nil {
+		return r.userRepo.UserURLs(ctx)
+	} else {
+		logger.Log.Errorf("no implement userRepo")
+		return nil, fmt.Errorf("no implement userRepo in repo")
+	}
+}

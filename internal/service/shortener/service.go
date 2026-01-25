@@ -20,10 +20,13 @@ type Service struct {
 }
 
 type Result struct {
-	Short  repository.ShortURL
-	Link   string
+	Short  repository.ShortURL `json: "short_url"`
+	Link   string              `json: "original_url"`
 	Exists bool
 }
+
+var ErrNotUserFound = errors.New("not user found")
+var ErrNotUserID = errors.New("not user id")
 
 func New(r repository.Repository, baseURL string, secret []byte) *Service {
 	return &Service{r: r, baseURL: baseURL, secret: secret}
@@ -276,18 +279,43 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (*Claims, error
 	}
 
 	if claims.UserID == 0 {
-		return &Claims{}, fmt.Errorf("missing user id in token claims")
+		return &Claims{}, fmt.Errorf("service.Verify: %w", ErrNotUserID)
 	}
 
 	_, err = ur.GetUser(ctx, claims.UserID)
 	if errors.Is(err, repository.ErrNotUserFound) {
-		return &Claims{}, fmt.Errorf("user not found")
+		return &Claims{}, fmt.Errorf("service.Verify: %w", ErrNotUserFound)
 	}
+
 	if err != nil {
 		return &Claims{}, fmt.Errorf("get user error: %w", err)
 	}
 
 	return &Claims{UserID: claims.UserID}, nil
+}
+
+func (s *Service) GetUserURLs(ctx context.Context) ([]model.ResponseUserURLs, error) {
+	ur, ok := s.r.(repository.UserRepo)
+	if !ok {
+		return nil, fmt.Errorf("repository doesn't support user methods")
+	}
+	urls, err := ur.UserURLs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get user urls error: %w", err)
+	}
+	if len(urls) == 0 {
+		return []model.ResponseUserURLs{}, nil
+	}
+	result := make([]model.ResponseUserURLs, 0, len(urls))
+	for _, url := range urls {
+		short, err := usvc.CreateURL(s.baseURL, url.ShortURL)
+		if err != nil {return nil, fmt.Errorf("svc.GetUserURLs: %s", err.Error())}
+		result = append(result, model.ResponseUserURLs{
+			URL:      string(url.URL),
+			ShortURL: short,
+		})
+	}
+	return result, nil
 }
 
 // urlsDiff возвращает urls, которых нет среди records (по URL), сохраняя порядок.
