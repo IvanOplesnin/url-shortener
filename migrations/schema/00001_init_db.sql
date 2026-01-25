@@ -24,5 +24,5 @@ CREATE INDEX IF NOT EXISTS alias_url_url_idx ON alias_url("url");
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS alias_url;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users CASCADE;
 -- +goose StatementEnd
