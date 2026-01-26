@@ -33,6 +33,10 @@ type UserRepo interface {
 	UserURLs(ctx context.Context) ([]Record, error)
 }
 
+type MarkUserDeleter interface {
+	DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error
+}
+
 type Seeder interface {
 	Seed([]Record)
 }

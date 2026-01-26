@@ -10,17 +10,28 @@ import (
 )
 
 type Repo struct {
-	base     repo.Repository
-	s        repo.Seeder
-	snap     repo.Snapshoter
-	p        filestorage.Persister
-	rb       repo.Rollback
-	tx       repo.TxRunner
-	batch    repo.BatchRepo
-	userRepo repo.UserRepo
+	base         repo.Repository
+	s            repo.Seeder
+	snap         repo.Snapshoter
+	p            filestorage.Persister
+	rb           repo.Rollback
+	tx           repo.TxRunner
+	batch        repo.BatchRepo
+	userRepo     repo.UserRepo
+	deleterBatch repo.MarkUserDeleter
 }
 
-func New(base repo.Repository, s repo.Seeder, snap repo.Snapshoter, p filestorage.Persister, rb repo.Rollback, tx repo.TxRunner, batch repo.BatchRepo, userRepo repo.UserRepo) (*Repo, error) {
+func New(
+	base repo.Repository,
+	s repo.Seeder,
+	snap repo.Snapshoter,
+	p filestorage.Persister,
+	rb repo.Rollback,
+	tx repo.TxRunner,
+	batch repo.BatchRepo,
+	userRepo repo.UserRepo,
+	deleterBatch repo.MarkUserDeleter,
+) (*Repo, error) {
 	records, err := p.Load()
 	if err != nil {
 		return nil, fmt.Errorf("persisted: load: %w", err)
@@ -30,14 +41,15 @@ func New(base repo.Repository, s repo.Seeder, snap repo.Snapshoter, p filestorag
 	}
 
 	return &Repo{
-		base:     base,
-		s:        s,
-		snap:     snap,
-		p:        p,
-		rb:       rb,
-		tx:       tx,
-		batch:    batch,
-		userRepo: userRepo,
+		base:         base,
+		s:            s,
+		snap:         snap,
+		p:            p,
+		rb:           rb,
+		tx:           tx,
+		batch:        batch,
+		userRepo:     userRepo,
+		deleterBatch: deleterBatch,
 	}, nil
 }
 
@@ -126,5 +138,14 @@ func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
 	} else {
 		logger.Log.Errorf("no implement userRepo")
 		return nil, repo.ErrNotImlementedUserRepo
+	}
+}
+
+func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error {
+	if r.deleterBatch != nil {
+		return r.deleterBatch.DeletedBatch(ctx, userID, shortUrls)
+	} else {
+		logger.Log.Errorf("no implement userRepo")
+		return fmt.Errorf("no implemented deleterBatch")
 	}
 }

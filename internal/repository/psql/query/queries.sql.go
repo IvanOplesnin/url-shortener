@@ -128,6 +128,23 @@ func (q *Queries) Search(ctx context.Context, url repository.URL) (repository.Sh
 	return short_url, err
 }
 
+const setDeletedBatch = `-- name: SetDeletedBatch :exec
+UPDATE alias_url
+SET is_deleted = true
+WHERE user_id = $1
+  AND short_url = ANY($2::text[])
+`
+
+type SetDeletedBatchParams struct {
+	UserID    pgtype.Int8
+	ShortUrls []string
+}
+
+func (q *Queries) SetDeletedBatch(ctx context.Context, arg SetDeletedBatchParams) error {
+	_, err := q.db.Exec(ctx, setDeletedBatch, arg.UserID, arg.ShortUrls)
+	return err
+}
+
 const userURLs = `-- name: UserURLs :many
 SELECT id, short_url, "url"
 FROM alias_url

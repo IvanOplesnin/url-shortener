@@ -17,6 +17,7 @@ type AliasUrl struct {
 	URL       repository.URL
 	ShortURL  repository.ShortURL
 	CreatedAt time.Time
+	IsDeleted bool
 }
 
 type User struct {

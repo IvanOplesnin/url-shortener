@@ -14,12 +14,12 @@ type Repo struct {
 	dataShort map[repo.ShortURL]repo.URL
 	dataURL   map[repo.URL]repo.ShortURL
 
-	// users
 	nextUserID int64
 	users      map[int64]struct{}
 
-	// user-specific urls: userID -> (short -> url)
 	userShort map[int64]map[repo.ShortURL]repo.URL
+
+	deleted map[repo.ShortURL]bool
 }
 
 func NewRepo() *Repo {
@@ -29,6 +29,7 @@ func NewRepo() *Repo {
 		nextUserID: 0,
 		users:      make(map[int64]struct{}),
 		userShort:  make(map[int64]map[repo.ShortURL]repo.URL),
+		deleted:    make(map[repo.ShortURL]bool),
 	}
 }
 
@@ -223,4 +224,37 @@ func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
 		})
 	}
 	return out, nil
+}
+
+func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error {
+	if userID == 0 {
+		return nil
+	}
+	if len(shortUrls) == 0 {
+		return nil
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.users[userID]; !ok {
+		return nil
+	}
+
+	userMap := r.userShort[userID]
+	if userMap == nil {
+		return nil
+	}
+
+	for _, s := range shortUrls {
+		short := repo.ShortURL(s)
+
+		if _, ok := userMap[short]; !ok {
+			continue
+		}
+
+		r.deleted[short] = true
+	}
+
+	return nil
 }

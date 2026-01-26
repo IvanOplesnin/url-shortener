@@ -38,3 +38,10 @@ LIMIT 1;
 SELECT id, short_url, "url"
 FROM alias_url
 WHERE user_id = $1;
+
+
+-- name: SetDeletedBatch :exec
+UPDATE alias_url
+SET is_deleted = true
+WHERE user_id = $1
+  AND short_url = ANY(sqlc.arg(short_urls)::text[]);

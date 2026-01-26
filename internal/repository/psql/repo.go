@@ -233,3 +233,11 @@ func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error)
 	return nil
 }
 
+
+func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error {
+	param := query.SetDeletedBatchParams{
+		UserID: pgtype.Int8{Int64: userID, Valid: true},
+		ShortUrls: shortUrls,
+	}
+	return r.queries.SetDeletedBatch(ctx, param)
+} 

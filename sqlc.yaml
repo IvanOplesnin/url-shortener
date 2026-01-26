@@ -5,6 +5,7 @@ sql:
       - internal/repository/psql/queries
     schema: 
       - migrations/schema/00001_init_db.sql
+      - migrations/schema/00002_add_is_deleted_column.sql
     gen:
       go:
         package: query
