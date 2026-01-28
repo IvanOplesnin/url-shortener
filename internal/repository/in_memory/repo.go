@@ -23,7 +23,6 @@ type Repo struct {
 	deleted map[repo.ShortURL]bool
 }
 
-
 func userID(ctx context.Context) (int64, error) {
 	claims, ok := handlers.ClaimsFromContext(ctx)
 	if !ok || claims == nil {
@@ -50,7 +49,7 @@ func (r *Repo) Get(ctx context.Context, shortURL repo.ShortURL) (repo.URL, error
 	if err != nil {
 		return "", err
 	}
-	logger.Log.Debugf("r(inmemery).Get shortURL: %s", shortURL)
+	logger.Log.Debugf("r(inmemery).Get shortURL: %s; userID: %v", shortURL, uID)
 	if value, ok := r.deleted[shortURL]; ok && value {
 		return "", repo.ErrIsDeleted
 	}
@@ -294,7 +293,6 @@ func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []strin
 
 	return nil
 }
-
 
 func (r *Repo) Undelete(ctx context.Context, shortURL repo.ShortURL) error {
 	uID, err := userID(ctx)
