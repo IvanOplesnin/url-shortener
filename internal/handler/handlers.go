@@ -87,6 +87,7 @@ func RedirectHandler(svc *shortener.Service) http.HandlerFunc {
 			return
 		}
 		if err != nil {
+			logger.Log.Errorf("redirect error: %s", err.Error())
 			http.NotFound(w, r)
 			return
 		}

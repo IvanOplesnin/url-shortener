@@ -361,18 +361,18 @@ func urlsDiff(urls []string, records []repository.Record) []string {
 	return out
 }
 
-func (s *Service) MarkDeleteURLs(_ context.Context, userID int64, short_urls []string) bool {
+func (s *Service) MarkDeleteURLs(_ context.Context, userID int64, shortURLs []string) bool {
 	if s.deleterService == nil {
 		logger.Log.Errorf("no implement MarkDelete")
 		return false
 	}
 
-	if userID == 0 || len(short_urls) == 0 {
+	if userID == 0 || len(shortURLs) == 0 {
 		return false
 	}
 
 	ok := s.deleterService.Add(
-		NewDeleteData(userID, short_urls),
+		NewDeleteData(userID, shortURLs),
 	)
 	if !ok {
 		logger.Log.Warnf("buffer is full")
