@@ -43,12 +43,7 @@ func (r *Repo) Get(ctx context.Context, shortURL repository.ShortURL) (repositor
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	uID, err := userID(ctx)
-	if err != nil {
-		return repository.URL(""), err
-	}
-
-	getRow, err := r.queries.Get(ctx, query.GetParams{UserID: uID, ShortURL: shortURL})
+	getRow, err := r.queries.Get(ctx, shortURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repository.URL(""), repository.ErrNotFoundShortURL
 	}

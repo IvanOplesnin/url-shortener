@@ -7,7 +7,7 @@ LIMIT 1;
 -- name: Get :one
 SELECT "url", is_deleted
 FROM alias_url
-WHERE short_url = $1 AND user_id = $2;
+WHERE short_url = $1;
 
 -- name: Add :exec
 INSERT INTO alias_url (

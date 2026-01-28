@@ -53,21 +53,16 @@ func (q *Queries) AddUser(ctx context.Context) (int64, error) {
 const get = `-- name: Get :one
 SELECT "url", is_deleted
 FROM alias_url
-WHERE short_url = $1 AND user_id = $2
+WHERE short_url = $1
 `
-
-type GetParams struct {
-	ShortURL repository.ShortURL
-	UserID   pgtype.Int8
-}
 
 type GetRow struct {
 	URL       repository.URL
 	IsDeleted bool
 }
 
-func (q *Queries) Get(ctx context.Context, arg GetParams) (GetRow, error) {
-	row := q.db.QueryRow(ctx, get, arg.ShortURL, arg.UserID)
+func (q *Queries) Get(ctx context.Context, shortUrl repository.ShortURL) (GetRow, error) {
+	row := q.db.QueryRow(ctx, get, shortUrl)
 	var i GetRow
 	err := row.Scan(&i.URL, &i.IsDeleted)
 	return i, err
