@@ -39,7 +39,6 @@ func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 				return
 			}
 			if token != "" {
-				logger.Log.Debugf("token: %s", token)
 				claims, err := svc.VerifyToken(ctx, token)
 				if err == nil {
 					ctx := context.WithValue(ctx, claimsKey, claims)
