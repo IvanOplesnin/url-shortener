@@ -45,21 +45,13 @@ func NewRepo() *Repo {
 func (r *Repo) Get(ctx context.Context, shortURL repo.ShortURL) (repo.URL, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	uID, err := userID(ctx)
-	if err != nil {
-		return "", err
-	}
-	logger.Log.Debugf("r(inmemery).Get shortURL: %s; userID: %v", shortURL, uID)
+
+	logger.Log.Debugf("r(inmemery).Get shortURL: %s", shortURL)
 	if value, ok := r.deleted[shortURL]; ok && value {
 		return "", repo.ErrIsDeleted
 	}
 	if url, ok := r.dataShort[shortURL]; ok {
-		if _, ok := r.userShort[uID]; ok {
-			if _, ok := r.userShort[uID][shortURL]; !ok {
-				return "", repo.ErrNotFoundShortURL
-			}
-			return url, nil
-		}
+		return url, nil
 	}
 	return "", repo.ErrNotFoundShortURL
 }
