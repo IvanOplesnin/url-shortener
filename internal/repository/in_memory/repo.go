@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
@@ -49,6 +50,7 @@ func (r *Repo) Get(ctx context.Context, shortURL repo.ShortURL) (repo.URL, error
 	if err != nil {
 		return "", err
 	}
+	logger.Log.Debugf("r(inmemery).Get shortURL: %s", shortURL)
 	if value, ok := r.deleted[shortURL]; ok && value {
 		return "", repo.ErrIsDeleted
 	}
@@ -77,6 +79,7 @@ func (r *Repo) Add(ctx context.Context, shortURL repo.ShortURL, url repo.URL) er
 	r.dataURL[url] = shortURL
 
 	if claims, ok := handlers.ClaimsFromContext(ctx); ok && claims != nil && claims.UserID != 0 {
+		logger.Log.Debugf("r(inmemory).Add clams.UserID: %v", claims.UserID)
 		if _, ok := r.users[claims.UserID]; ok {
 			if r.userShort[claims.UserID] == nil {
 				r.userShort[claims.UserID] = make(map[repo.ShortURL]repo.URL)

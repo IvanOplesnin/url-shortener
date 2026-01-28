@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
@@ -63,6 +64,7 @@ func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 		ctx := r.Context()
 		res, err := svc.Shorten(ctx, repo.URL(raw))
 		if err != nil {
+			logger.Log.Errorf("error shorten: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

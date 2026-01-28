@@ -11,7 +11,7 @@ test:
 
 
 run_memory:
-	ENV_FILE=./.env.inmemory ./run.sh
+	ENV_FILE=./.inmemory.env ./run.sh
 
 g_up:
 	goose -env .env up
