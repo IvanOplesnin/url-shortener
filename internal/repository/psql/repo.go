@@ -43,12 +43,12 @@ func (r *Repo) Get(ctx context.Context, shortURL repository.ShortURL) (repositor
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	userId, err := userID(ctx)
+	uID, err := userID(ctx)
 	if err != nil {
 		return repository.URL(""), err
 	}
 
-	getRow, err := r.queries.Get(ctx, query.GetParams{UserID: userId, ShortURL: shortURL})
+	getRow, err := r.queries.Get(ctx, query.GetParams{UserID: uID, ShortURL: shortURL})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repository.URL(""), repository.ErrNotFoundShortURL
 	}
@@ -65,12 +65,12 @@ func (r *Repo) Search(ctx context.Context, url repository.URL) (repository.Short
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	userId, err := userID(ctx)
+	uID, err := userID(ctx)
 	if err != nil {
 		return repository.ShortURL(""), err
 	}
 
-	searchRow, err := r.queries.Search(ctx, query.SearchParams{UserID: userId, URL: url})
+	searchRow, err := r.queries.Search(ctx, query.SearchParams{UserID: uID, URL: url})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repository.ShortURL(""), repository.ErrNotFoundURL
 	}
