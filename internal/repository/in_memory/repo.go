@@ -22,6 +22,15 @@ type Repo struct {
 	deleted map[repo.ShortURL]bool
 }
 
+
+func userID(ctx context.Context) (int64, error) {
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if !ok || claims == nil {
+		return 0, fmt.Errorf("no claims in context")
+	}
+	return claims.UserID, nil
+}
+
 func NewRepo() *Repo {
 	return &Repo{
 		dataShort:  make(map[repo.ShortURL]repo.URL),
@@ -33,12 +42,23 @@ func NewRepo() *Repo {
 	}
 }
 
-func (r *Repo) Get(_ context.Context, shortURL repo.ShortURL) (repo.URL, error) {
+func (r *Repo) Get(ctx context.Context, shortURL repo.ShortURL) (repo.URL, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
+	uID, err := userID(ctx)
+	if err != nil {
+		return "", err
+	}
+	if value, ok := r.deleted[shortURL]; ok && value {
+		return "", repo.ErrIsDeleted
+	}
 	if url, ok := r.dataShort[shortURL]; ok {
-		return url, nil
+		if _, ok := r.userShort[uID]; ok {
+			if _, ok := r.userShort[uID][shortURL]; !ok {
+				return "", repo.ErrNotFoundShortURL
+			}
+			return url, nil
+		}
 	}
 	return "", repo.ErrNotFoundShortURL
 }
@@ -68,14 +88,27 @@ func (r *Repo) Add(ctx context.Context, shortURL repo.ShortURL, url repo.URL) er
 	return nil
 }
 
-func (r *Repo) Search(_ context.Context, url repo.URL) (repo.ShortURL, error) {
+func (r *Repo) Search(ctx context.Context, url repo.URL) (repo.ShortURL, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	if short, ok := r.dataURL[url]; ok {
-		return short, nil
+	uID, err := userID(ctx)
+	if err != nil {
+		return "", err
 	}
-	return "", repo.ErrNotFoundURL
+	short, ok := r.dataURL[url]
+	if !ok {
+		return "", repo.ErrNotFoundURL
+	}
+	if value, ok := r.deleted[short]; ok && value {
+		return "", repo.ErrIsDeleted
+	}
+	if _, ok := r.userShort[uID]; ok {
+		if _, ok := r.userShort[uID][short]; !ok {
+			return "", repo.ErrNotFoundShortURL
+		}
+	}
+	return short, nil
+
 }
 
 func (r *Repo) Seed(records []repo.Record) {
@@ -256,5 +289,24 @@ func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []strin
 		r.deleted[short] = true
 	}
 
+	return nil
+}
+
+
+func (r *Repo) Undelete(ctx context.Context, shortURL repo.ShortURL) error {
+	uID, err := userID(ctx)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.users[uID]; !ok {
+		return nil
+	}
+	if _, ok := r.userShort[uID][shortURL]; !ok {
+		return nil
+	}
+	delete(r.deleted, shortURL)
 	return nil
 }

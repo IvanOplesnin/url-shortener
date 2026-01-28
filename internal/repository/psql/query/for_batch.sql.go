@@ -86,8 +86,14 @@ func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow,
 const getByURLs = `-- name: GetByURLs :many
 SELECT id, short_url, "url"
 FROM alias_url
-WHERE "url" = ANY($1::text[])
+WHERE "url" = ANY($2::text[])
+  AND user_id = $1
 `
+
+type GetByURLsParams struct {
+	UserID pgtype.Int8
+	Urls   []string
+}
 
 type GetByURLsRow struct {
 	ID       int64
@@ -95,8 +101,8 @@ type GetByURLsRow struct {
 	URL      repository.URL
 }
 
-func (q *Queries) GetByURLs(ctx context.Context, urls []string) ([]GetByURLsRow, error) {
-	rows, err := q.db.Query(ctx, getByURLs, urls)
+func (q *Queries) GetByURLs(ctx context.Context, arg GetByURLsParams) ([]GetByURLsRow, error) {
+	rows, err := q.db.Query(ctx, getByURLs, arg.UserID, arg.Urls)
 	if err != nil {
 		return nil, err
 	}

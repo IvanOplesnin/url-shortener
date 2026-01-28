@@ -1,7 +1,8 @@
 -- name: GetByURLs :many
 SELECT id, short_url, "url"
 FROM alias_url
-WHERE "url" = ANY(sqlc.arg(urls)::text[]);
+WHERE "url" = ANY(sqlc.arg(urls)::text[])
+  AND user_id = $1;
 
 
 -- name: AddMany :many

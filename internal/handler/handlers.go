@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -35,6 +36,7 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger, mwTokenCheck
 	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc))
 	router.Get("/api/user/urls", UserUrlsHandler(svc))
 	router.Get("/ping", PingHandler(p))
+	router.Delete("/api/user/urls", UserMarkDeleteHandler(svc))
 
 	router.Route(
 		baseP, func(router chi.Router) {
@@ -78,6 +80,10 @@ func RedirectHandler(svc *shortener.Service) http.HandlerFunc {
 		id := chi.URLParam(r, "id")
 		ctx := r.Context()
 		url, err := svc.Resolve(ctx, repo.ShortURL(id))
+		if errors.Is(err, repo.ErrIsDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		if err != nil {
 			http.NotFound(w, r)
 			return

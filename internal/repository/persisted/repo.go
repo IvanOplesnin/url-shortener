@@ -145,7 +145,16 @@ func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []strin
 	if r.deleterBatch != nil {
 		return r.deleterBatch.DeletedBatch(ctx, userID, shortUrls)
 	} else {
-		logger.Log.Errorf("no implement userRepo")
+		logger.Log.Errorf("no implement deleterBatch")
+		return fmt.Errorf("no implemented deleterBatch")
+	}
+}
+
+func (r *Repo) Undelete(ctx context.Context, shortURL repo.ShortURL) error {
+	if r.deleterBatch != nil {
+		return r.deleterBatch.Undelete(ctx, shortURL)
+	} else {
+		logger.Log.Errorf("no implement deleterBatch")
 		return fmt.Errorf("no implemented deleterBatch")
 	}
 }

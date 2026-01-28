@@ -17,6 +17,8 @@ type Service struct {
 	r       repository.Repository
 	baseURL string
 	secret  []byte
+
+	deleterService *SoftDeleterService
 }
 
 type Result struct {
@@ -29,7 +31,15 @@ var ErrNotUserFound = errors.New("not user found")
 var ErrNotUserID = errors.New("not user id")
 
 func New(r repository.Repository, baseURL string, secret []byte) *Service {
-	return &Service{r: r, baseURL: baseURL, secret: secret}
+	rd, ok := r.(repository.MarkUserDeleter)
+	if !ok {
+		logger.Log.Debugf("no MarkUserDeleter")
+	}
+	var deleterService *SoftDeleterService
+	if ok {
+		deleterService = NewDeleterService(rd)
+	}
+	return &Service{r: r, baseURL: baseURL, secret: secret, deleterService: deleterService}
 }
 
 func (s *Service) Shorten(ctx context.Context, u repository.URL) (Result, error) {
@@ -45,8 +55,21 @@ func (s *Service) Shorten(ctx context.Context, u repository.URL) (Result, error)
 		}
 		return Result{Short: short, Link: link, Exists: true}, nil
 	}
+	if errors.Is(err, repository.ErrIsDeleted) {
+		rd, ok := s.r.(repository.MarkUserDeleter)
+		if ok {
+			if err := rd.Undelete(ctx, short); err != nil {
+				return Result{}, err
+			}
+			link, err := usvc.CreateURL(s.baseURL, short)
+			if err != nil {
+				return Result{}, err
+			}
+			return Result{Short: short, Link: link, Exists: false}, nil
+		}
+	}
 
-	if !errors.Is(err, repository.ErrNotFoundURL) {
+	if !errors.Is(err, repository.ErrNotFoundURL) && !errors.Is(err, repository.ErrIsDeleted) {
 		return Result{}, err
 	}
 
@@ -336,4 +359,36 @@ func urlsDiff(urls []string, records []repository.Record) []string {
 		}
 	}
 	return out
+}
+
+func (s *Service) MarkDeleteURLs(_ context.Context, userID int64, short_urls []string) bool {
+	if s.deleterService == nil {
+		logger.Log.Errorf("no implement MarkDelete")
+		return false
+	}
+
+	if userID == 0 || len(short_urls) == 0 {
+		return false
+	}
+
+	ok := s.deleterService.Add(
+		NewDeleteData(userID, short_urls),
+	)
+	if !ok {
+		logger.Log.Warnf("buffer is full")
+	}
+	return ok
+}
+
+func (s *Service) Start() {
+	if s.deleterService != nil {
+		s.deleterService.Start()
+	}
+
+}
+
+func (s *Service) Stop() {
+	if s.deleterService != nil {
+		s.deleterService.Stop()
+	}
 }

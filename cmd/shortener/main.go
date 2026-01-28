@@ -47,6 +47,8 @@ func run() error {
 		logger.Log.Fatalf("Can`t create repository %s", err)
 	}
 	svc := shortener.New(persistedRepo, baseURL, []byte(cfg.Secret))
+	svc.Start()
+	defer svc.Stop()
 	mux := handlers.InitHandlers(svc, baseURL, db, handlers.CheckCookieJWTAndSet(svc))
 	return http.ListenAndServe(cfg.Server.String(), mux)
 }
