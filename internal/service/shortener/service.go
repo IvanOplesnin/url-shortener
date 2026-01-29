@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -244,7 +245,7 @@ type Claims struct {
 }
 
 func (c *Claims) String() string {
-	return fmt.Sprintf("%v", c.UserID)
+	return strconv.Itoa(int(c.UserID))
 }
 
 type JwtClaims struct {

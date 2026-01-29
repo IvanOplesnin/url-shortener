@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/IvanOplesnin/url-shortener/internal/logger"
@@ -45,17 +44,17 @@ func CheckCookieJWTAndSet(svc TokenService) func(http.Handler) http.Handler {
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				} else if errors.Is(err, shortener.ErrNotUserFound) || errors.Is(err, shortener.ErrNotUserID) {
-					logger.Log.Errorf("verify token error: %s", err.Error())
+					logger.Log.Errorf("mwCokie:verify token error: %s", err.Error())
 					w.WriteHeader(http.StatusUnauthorized)
 					return
 				} else {
-					logger.Log.Errorf("verify token error: %s", err.Error())
+					logger.Log.Errorf("mwCokie:verify token error: %s", err.Error())
 				}
 			}
 			newToken, newClaims, err := svc.CreateToken(ctx)
 			if err != nil {
-				errorString := fmt.Sprintf("failed to create token: %s", err.Error())
-				http.Error(w, errorString, http.StatusInternalServerError)
+				logger.Log.Errorf("mwCokie: error create token: %s", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 			if newToken != "" {

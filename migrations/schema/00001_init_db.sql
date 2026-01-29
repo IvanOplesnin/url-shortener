@@ -1,14 +1,14 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY
 );
 
 CREATE TABLE IF NOT EXISTS alias_url (
-    id          BIGSERIAL PRIMARY KEY,
+    id          INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id     BIGINT,
-    "url"       VARCHAR NOT NULL,
-    short_url   VARCHAR NOT NULL,
+    "url"       VARCHAR(2000) NOT NULL,
+    short_url   VARCHAR(50) NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT alias_url_user_url_uk  UNIQUE (user_id, "url"),

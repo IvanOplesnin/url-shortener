@@ -7,7 +7,6 @@ import (
 	"time"
 
 	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
-	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/psql/query"
 	"github.com/jackc/pgx/v5"
@@ -84,13 +83,11 @@ func (r *Repo) Add(ctx context.Context, shortURL repository.ShortURL, url reposi
 	now := time.Now().UTC()
 	var userID pgtype.Int8
 	claims, ok := handlers.ClaimsFromContext(ctx)
-	logger.Log.Debugf("repo.Add claims: %s", claims)
 	if ok {
 		userID = pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
 	} else {
 		userID = pgtype.Int8{Valid: false}
 	}
-	logger.Log.Debug(userID)
 	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now, UserID: userID}
 	if err := r.queries.Add(ctx, params); err != nil {
 		var pgErr *pgconn.PgError
@@ -117,7 +114,6 @@ func (r *Repo) Snapshot(ctx context.Context) []repository.Record {
 	}
 	rows, err := r.queries.GetAllRecords(ctx, UserID)
 	if err != nil {
-		logger.Log.Errorf("error psql GetAllRecords: %s", err)
 		return []repository.Record{}
 	}
 	recs := make([]repository.Record, 0, len(rows))

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/IvanOplesnin/url-shortener/internal/filestorage"
-	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 )
 
@@ -118,7 +117,6 @@ func (r *Repo) AddUser(ctx context.Context) (int64, error) {
 	if r.userRepo != nil {
 		return r.userRepo.AddUser(ctx)
 	} else {
-		logger.Log.Errorf("no implement userRepo")
 		return 0, fmt.Errorf("no implement userRepo in repo")
 	}
 }
@@ -127,7 +125,6 @@ func (r *Repo) GetUser(ctx context.Context, id int64) (int64, error) {
 	if r.userRepo != nil {
 		return r.userRepo.GetUser(ctx, id)
 	} else {
-		logger.Log.Errorf("no implement userRepo")
 		return 0, repo.ErrNotImlementedUserRepo
 	}
 }
@@ -136,7 +133,6 @@ func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
 	if r.userRepo != nil {
 		return r.userRepo.UserURLs(ctx)
 	} else {
-		logger.Log.Errorf("no implement userRepo")
 		return nil, repo.ErrNotImlementedUserRepo
 	}
 }
@@ -145,7 +141,6 @@ func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []strin
 	if r.deleterBatch != nil {
 		return r.deleterBatch.DeletedBatch(ctx, userID, shortUrls)
 	} else {
-		logger.Log.Errorf("no implement deleterBatch")
 		return fmt.Errorf("no implemented deleterBatch")
 	}
 }
@@ -154,7 +149,6 @@ func (r *Repo) Undelete(ctx context.Context, shortURL repo.ShortURL) error {
 	if r.deleterBatch != nil {
 		return r.deleterBatch.Undelete(ctx, shortURL)
 	} else {
-		logger.Log.Errorf("no implement deleterBatch")
 		return fmt.Errorf("no implemented deleterBatch")
 	}
 }

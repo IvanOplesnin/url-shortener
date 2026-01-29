@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 )
 
@@ -23,16 +24,19 @@ func UserMarkDeleteHandler(svc *shortener.Service) http.HandlerFunc {
 		var reqData RequestData
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
+			logger.Log.Errorf("markDelete: read body error: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return 
 		}
 		defer r.Body.Close()
 		if err := json.Unmarshal(body, &reqData); err != nil {
+			logger.Log.Errorf("markDelete: unmarshall error: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return 
 		}
 		ok = svc.MarkDeleteURLs(ctx, userID, reqData)
 		if !ok {
+			logger.Log.Errorf("markDelete: ok svc.MaekDeleteURLs")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
