@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
+	"github.com/IvanOplesnin/url-shortener/internal/logger"
 	repo "github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/IvanOplesnin/url-shortener/internal/service/shortener"
 	u "github.com/IvanOplesnin/url-shortener/internal/service/url"
@@ -18,7 +20,7 @@ const (
 	textPlainValue       = "text/plain"
 )
 
-func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
+func InitHandlers(svc *shortener.Service, baseURL string, p Pinger, mwTokenCheck func(http.Handler) http.Handler) *chi.Mux {
 	router := chi.NewRouter()
 
 	baseP := u.BasePath(baseURL)
@@ -26,12 +28,16 @@ func InitHandlers(svc *shortener.Service, baseURL string, p Pinger) *chi.Mux {
 	router.Use(WithLogging)
 	router.Use(CompressGzip)
 	router.Use(UncompressGzip)
+	if mwTokenCheck != nil {
+		router.Use(CheckCookieJWTAndSet(svc))
+	}
 
 	router.Post("/", ShortenLinkHandler(svc))
 	router.Post("/api/shorten", ShortenAPIHandler(svc))
 	router.Post("/api/shorten/batch", ShortenBatchAPIHandler(svc))
+	router.Get("/api/user/urls", UserUrlsHandler(svc))
 	router.Get("/ping", PingHandler(p))
-
+	router.Delete("/api/user/urls", UserMarkDeleteHandler(svc))
 
 	router.Route(
 		baseP, func(router chi.Router) {
@@ -58,6 +64,7 @@ func ShortenLinkHandler(svc *shortener.Service) http.HandlerFunc {
 		ctx := r.Context()
 		res, err := svc.Shorten(ctx, repo.URL(raw))
 		if err != nil {
+			logger.Log.Errorf("error shorten: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -75,7 +82,12 @@ func RedirectHandler(svc *shortener.Service) http.HandlerFunc {
 		id := chi.URLParam(r, "id")
 		ctx := r.Context()
 		url, err := svc.Resolve(ctx, repo.ShortURL(id))
+		if errors.Is(err, repo.ErrIsDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		if err != nil {
+			logger.Log.Errorf("redirect error: %s", err.Error())
 			http.NotFound(w, r)
 			return
 		}

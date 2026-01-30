@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const add = `-- name: Add :exec
 INSERT INTO alias_url (
-    short_url, "url", created_at
+    short_url, "url", created_at, user_id
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4
 )
 `
 
@@ -24,41 +25,72 @@ type AddParams struct {
 	ShortURL  repository.ShortURL
 	URL       repository.URL
 	CreatedAt time.Time
+	UserID    pgtype.Int8
 }
 
 func (q *Queries) Add(ctx context.Context, arg AddParams) error {
-	_, err := q.db.Exec(ctx, add, arg.ShortURL, arg.URL, arg.CreatedAt)
+	_, err := q.db.Exec(ctx, add,
+		arg.ShortURL,
+		arg.URL,
+		arg.CreatedAt,
+		arg.UserID,
+	)
 	return err
 }
 
+const addUser = `-- name: AddUser :one
+INSERT INTO users DEFAULT VALUES
+RETURNING id
+`
+
+func (q *Queries) AddUser(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, addUser)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const get = `-- name: Get :one
-SELECT "url"
+SELECT "url", is_deleted
 FROM alias_url
 WHERE short_url = $1
 `
 
-func (q *Queries) Get(ctx context.Context, shortUrl repository.ShortURL) (repository.URL, error) {
+type GetRow struct {
+	URL       repository.URL
+	IsDeleted bool
+}
+
+func (q *Queries) Get(ctx context.Context, shortUrl repository.ShortURL) (GetRow, error) {
 	row := q.db.QueryRow(ctx, get, shortUrl)
-	var url repository.URL
-	err := row.Scan(&url)
-	return url, err
+	var i GetRow
+	err := row.Scan(&i.URL, &i.IsDeleted)
+	return i, err
 }
 
 const getAllRecords = `-- name: GetAllRecords :many
-SELECT id, url, short_url, created_at 
+SELECT  id, "url", short_url, created_at
 FROM alias_url
+WHERE user_id = $1
 ORDER BY id
 `
 
-func (q *Queries) GetAllRecords(ctx context.Context) ([]AliasUrl, error) {
-	rows, err := q.db.Query(ctx, getAllRecords)
+type GetAllRecordsRow struct {
+	ID        int64
+	URL       repository.URL
+	ShortURL  repository.ShortURL
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetAllRecords(ctx context.Context, userID pgtype.Int8) ([]GetAllRecordsRow, error) {
+	rows, err := q.db.Query(ctx, getAllRecords, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []AliasUrl
+	var items []GetAllRecordsRow
 	for rows.Next() {
-		var i AliasUrl
+		var i GetAllRecordsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.URL,
@@ -75,16 +107,105 @@ func (q *Queries) GetAllRecords(ctx context.Context) ([]AliasUrl, error) {
 	return items, nil
 }
 
-const search = `-- name: Search :one
-SELECT short_url 
-FROM alias_url
-WHERE "url" = $1
+const getUser = `-- name: GetUser :one
+SELECT id
+FROM users
+WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) Search(ctx context.Context, url repository.URL) (repository.ShortURL, error) {
-	row := q.db.QueryRow(ctx, search, url)
-	var short_url repository.ShortURL
-	err := row.Scan(&short_url)
-	return short_url, err
+func (q *Queries) GetUser(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
+const search = `-- name: Search :one
+SELECT short_url, is_deleted
+FROM alias_url
+WHERE "url" = $1 AND user_id = $2
+LIMIT 1
+`
+
+type SearchParams struct {
+	URL    repository.URL
+	UserID pgtype.Int8
+}
+
+type SearchRow struct {
+	ShortURL  repository.ShortURL
+	IsDeleted bool
+}
+
+func (q *Queries) Search(ctx context.Context, arg SearchParams) (SearchRow, error) {
+	row := q.db.QueryRow(ctx, search, arg.URL, arg.UserID)
+	var i SearchRow
+	err := row.Scan(&i.ShortURL, &i.IsDeleted)
+	return i, err
+}
+
+const setDeletedBatch = `-- name: SetDeletedBatch :exec
+UPDATE alias_url
+SET is_deleted = true
+WHERE user_id = $1
+  AND short_url = ANY($2::text[])
+`
+
+type SetDeletedBatchParams struct {
+	UserID    pgtype.Int8
+	ShortUrls []string
+}
+
+func (q *Queries) SetDeletedBatch(ctx context.Context, arg SetDeletedBatchParams) error {
+	_, err := q.db.Exec(ctx, setDeletedBatch, arg.UserID, arg.ShortUrls)
+	return err
+}
+
+const setDeletedFalse = `-- name: SetDeletedFalse :exec
+UPDATE alias_url
+SET is_deleted = false
+WHERE user_id = $1
+  AND short_url = $2
+`
+
+type SetDeletedFalseParams struct {
+	UserID   pgtype.Int8
+	ShortURL repository.ShortURL
+}
+
+func (q *Queries) SetDeletedFalse(ctx context.Context, arg SetDeletedFalseParams) error {
+	_, err := q.db.Exec(ctx, setDeletedFalse, arg.UserID, arg.ShortURL)
+	return err
+}
+
+const userURLs = `-- name: UserURLs :many
+SELECT id, short_url, "url"
+FROM alias_url
+WHERE user_id = $1
+`
+
+type UserURLsRow struct {
+	ID       int64
+	ShortURL repository.ShortURL
+	URL      repository.URL
+}
+
+func (q *Queries) UserURLs(ctx context.Context, userID pgtype.Int8) ([]UserURLsRow, error) {
+	rows, err := q.db.Query(ctx, userURLs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserURLsRow
+	for rows.Next() {
+		var i UserURLsRow
+		if err := rows.Scan(&i.ID, &i.ShortURL, &i.URL); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

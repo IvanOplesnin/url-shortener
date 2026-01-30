@@ -46,8 +46,10 @@ func run() error {
 	if err != nil {
 		logger.Log.Fatalf("Can`t create repository %s", err)
 	}
-	svc := shortener.New(persistedRepo, baseURL)
-	mux := handlers.InitHandlers(svc, baseURL, db)
+	svc := shortener.New(persistedRepo, baseURL, []byte(cfg.Secret))
+	svc.Start()
+	defer svc.Stop()
+	mux := handlers.InitHandlers(svc, baseURL, db, handlers.CheckCookieJWTAndSet(svc))
 	return http.ListenAndServe(cfg.Server.String(), mux)
 }
 
@@ -59,14 +61,14 @@ func createRepo(cfg *config.Config) (*persisted.Repo, *pgxpool.Pool, error) {
 			return nil, nil, err
 		}
 		repo := psql.NewRepo(db)
-		persisterdRepo, err := persisted.New(repo, nil, nil, fileStorage, nil, repo, repo)
+		persisterdRepo, err := persisted.New(repo, nil, nil, fileStorage, nil, repo, repo, repo, repo)
 		if err != nil {
 			return nil, nil, err
 		}
 		return persisterdRepo, db, nil
 	}
 	repo := inmemory.NewRepo()
-	persisterdRepo, err := persisted.New(repo, repo, repo, fileStorage, repo, nil, repo)
+	persisterdRepo, err := persisted.New(repo, repo, repo, fileStorage, repo, nil, repo, repo, repo)
 	if err != nil {
 		return nil, nil, err
 	}

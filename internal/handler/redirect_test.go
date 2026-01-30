@@ -87,9 +87,9 @@ func TestRedirectHandler(t *testing.T) {
 
 			// Инициализация маршрутизатора с мок-хранилищем и базовым URL
 			// InitHandlers настраивает маршруты, включая обработчик редиректа
-			newService := shortener.New(storage, baseURL)
+			newService := shortener.New(storage, baseURL, []byte{})
 
-			mux := InitHandlers(newService, baseURL, nil)
+			mux := InitHandlers(newService, baseURL, nil, nil)
 			// Обработка запроса
 			mux.ServeHTTP(rr, req)
 

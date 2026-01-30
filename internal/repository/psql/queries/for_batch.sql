@@ -1,7 +1,8 @@
 -- name: GetByURLs :many
 SELECT id, short_url, "url"
 FROM alias_url
-WHERE "url" = ANY(sqlc.arg(urls)::text[]);
+WHERE "url" = ANY(sqlc.arg(urls)::text[])
+  AND user_id = $1;
 
 
 -- name: AddMany :many
@@ -9,7 +10,8 @@ WITH input AS (
   SELECT
     s.short_url,
     u.url,
-    c.created_at
+    c.created_at,
+    sqlc.narg(user_id)::bigint AS user_id
   FROM unnest(sqlc.arg(short_urls)::text[])        WITH ORDINALITY AS s(short_url, ord)
   JOIN unnest(sqlc.arg(urls)::text[])             WITH ORDINALITY AS u(url, ord)
     USING (ord)
@@ -17,11 +19,11 @@ WITH input AS (
     USING (ord)
 ),
 inserted AS (
-  INSERT INTO alias_url (short_url, "url", created_at)
-  SELECT short_url, url, created_at
+  INSERT INTO alias_url (short_url, "url", created_at, user_id)
+  SELECT short_url, url, created_at, user_id
   FROM input
   ON CONFLICT DO NOTHING
-  RETURNING id, short_url, "url", created_at
+  RETURNING id, short_url, "url", created_at, user_id
 )
-SELECT id, short_url, "url", created_at
+SELECT id, short_url, "url", created_at, user_id
 FROM inserted;

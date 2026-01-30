@@ -12,6 +12,9 @@ var ErrNotFoundShortURL = errors.New("not found shortURL")
 var ErrNotFoundURL = errors.New("not found URL")
 var ErrAlreadyExists = errors.New("already exists URL")
 var ErrShortURLAlreadyExists = errors.New("already exist ShortURL")
+var ErrNotUserFound = errors.New("not found user")
+var ErrNotImlementedUserRepo = errors.New("not implemented user repo")
+var ErrIsDeleted = errors.New("is deleted")
 
 type Repository interface {
 	Add(ctx context.Context, key ShortURL, value URL) error
@@ -23,6 +26,17 @@ type BatchRepo interface {
 	Repository
 	GetByURLs(ctx context.Context, urls []string) ([]Record, error)
 	AddMany(ctx context.Context, records []ArgAddMany) ([]Record, error)
+}
+
+type UserRepo interface {
+	AddUser(ctx context.Context) (int64, error)
+	GetUser(ctx context.Context, id int64) (int64, error)
+	UserURLs(ctx context.Context) ([]Record, error)
+}
+
+type MarkUserDeleter interface {
+	DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error
+	Undelete(ctx context.Context, shortURL ShortURL) error
 }
 
 type Seeder interface {

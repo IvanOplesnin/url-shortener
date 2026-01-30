@@ -6,13 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IvanOplesnin/url-shortener/internal/logger"
+	handlers "github.com/IvanOplesnin/url-shortener/internal/handler"
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
 	"github.com/IvanOplesnin/url-shortener/internal/repository/psql/query"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func userID(ctx context.Context) (pgtype.Int8, error) {
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if !ok {
+		return pgtype.Int8{}, fmt.Errorf("no claims in context")
+	}
+	return pgtype.Int8{
+		Int64: int64(claims.UserID),
+		Valid: true,
+	}, nil
+}
 
 type Repo struct {
 	db      *pgxpool.Pool
@@ -29,34 +41,54 @@ func NewRepo(db *pgxpool.Pool) *Repo {
 func (r *Repo) Get(ctx context.Context, shortURL repository.ShortURL) (repository.URL, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	url, err := r.queries.Get(ctx, shortURL)
+
+	getRow, err := r.queries.Get(ctx, shortURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repository.URL(""), repository.ErrNotFoundShortURL
 	}
 	if err != nil {
 		return repository.URL(""), fmt.Errorf("psql error Get: %w", err)
 	}
-	return repository.URL(url), nil
+	if getRow.IsDeleted {
+		return repository.URL(""), repository.ErrIsDeleted
+	}
+	return repository.URL(getRow.URL), nil
 }
 
 func (r *Repo) Search(ctx context.Context, url repository.URL) (repository.ShortURL, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	shortURL, err := r.queries.Search(ctx, url)
+
+	uID, err := userID(ctx)
+	if err != nil {
+		return repository.ShortURL(""), err
+	}
+
+	searchRow, err := r.queries.Search(ctx, query.SearchParams{UserID: uID, URL: url})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return repository.ShortURL(shortURL), repository.ErrNotFoundURL
+		return repository.ShortURL(""), repository.ErrNotFoundURL
 	}
 	if err != nil {
 		return repository.ShortURL(""), fmt.Errorf("psql error Search: %w", err)
 	}
-	return repository.ShortURL(shortURL), nil
+	if searchRow.IsDeleted {
+		return repository.ShortURL(searchRow.ShortURL), repository.ErrIsDeleted
+	}
+	return repository.ShortURL(searchRow.ShortURL), nil
 }
 
 func (r *Repo) Add(ctx context.Context, shortURL repository.ShortURL, url repository.URL) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	now := time.Now().UTC()
-	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now}
+	var userID pgtype.Int8
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if ok {
+		userID = pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+	} else {
+		userID = pgtype.Int8{Valid: false}
+	}
+	params := query.AddParams{ShortURL: shortURL, URL: url, CreatedAt: now, UserID: userID}
 	if err := r.queries.Add(ctx, params); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -75,12 +107,13 @@ func (r *Repo) Add(ctx context.Context, shortURL repository.ShortURL, url reposi
 	return nil
 }
 
-func (r *Repo) Snapshot() []repository.Record {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	rows, err := r.queries.GetAllRecords(ctx)
+func (r *Repo) Snapshot(ctx context.Context) []repository.Record {
+	UserID, err := userID(ctx)
 	if err != nil {
-		logger.Log.Errorf("error psql GetAllRecords: %s", err)
+		return []repository.Record{}
+	}
+	rows, err := r.queries.GetAllRecords(ctx, UserID)
+	if err != nil {
 		return []repository.Record{}
 	}
 	recs := make([]repository.Record, 0, len(rows))
@@ -100,7 +133,11 @@ func (r *Repo) GetByURLs(ctx context.Context, urls []string) ([]repository.Recor
 	if len(urls) == 0 {
 		return []repository.Record{}, nil
 	} else {
-		rows, err := r.queries.GetByURLs(ctx, urls)
+		UserID, err := userID(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("no userID in context: %w", err)
+		}
+		rows, err := r.queries.GetByURLs(ctx, query.GetByURLsParams{Urls: urls, UserID: UserID})
 		if err != nil {
 			return nil, fmt.Errorf("psql error GetByURLs: %w", err)
 		}
@@ -124,6 +161,13 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 		urls := make([]string, 0, len(records))
 		times := make([]time.Time, 0, len(records))
 		now := time.Now().UTC()
+		var userID pgtype.Int8
+		claims, ok := handlers.ClaimsFromContext(ctx)
+		if ok {
+			userID = pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+		} else {
+			userID = pgtype.Int8{Valid: false}
+		}
 		for _, rec := range records {
 			shortURLs = append(shortURLs, string(rec.ShortURL))
 			urls = append(urls, string(rec.URL))
@@ -133,6 +177,7 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 			ShortUrls:  shortURLs,
 			Urls:       urls,
 			CreatedAts: times,
+			UserID:     userID,
 		}
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
@@ -155,6 +200,45 @@ func (r *Repo) AddMany(ctx context.Context, records []repository.ArgAddMany) ([]
 	}
 }
 
+func (r *Repo) AddUser(ctx context.Context) (int64, error) {
+	return r.queries.AddUser(ctx)
+}
+
+func (r *Repo) GetUser(ctx context.Context, userID int64) (int64, error) {
+	userID, err := r.queries.GetUser(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, repository.ErrNotUserFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("psql error GetUser: %w", err)
+	}
+	return userID, nil
+}
+
+func (r *Repo) UserURLs(ctx context.Context) ([]repository.Record, error) {
+	claims, ok := handlers.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("no claims in context")
+	}
+	userID := pgtype.Int8{Int64: int64(claims.UserID), Valid: true}
+	urls, err := r.queries.UserURLs(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []repository.Record{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("psql error UserURLs: %w", err)
+	}
+	result := make([]repository.Record, 0, len(urls))
+	for _, url := range urls {
+		result = append(result, repository.Record{
+			ID:       int(url.ID),
+			URL:      repository.URL(url.URL),
+			ShortURL: repository.ShortURL(url.ShortURL),
+		})
+	}
+	return result, nil
+}
+
 // InTx(ctx context.Context, fn func(r Repository) error) error
 func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error) error {
 	tx, err := r.db.Begin(ctx)
@@ -172,4 +256,20 @@ func (r *Repo) InTx(ctx context.Context, fn func(r repository.Repository) error)
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
+}
+
+func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error {
+	param := query.SetDeletedBatchParams{
+		UserID:    pgtype.Int8{Int64: userID, Valid: true},
+		ShortUrls: shortUrls,
+	}
+	return r.queries.SetDeletedBatch(ctx, param)
+}
+
+func (r *Repo)Undelete(ctx context.Context, shortURL repository.ShortURL) error {
+	uID, err := userID(ctx)
+	if err != nil {
+		return err
+	}
+	return r.queries.SetDeletedFalse(ctx, query.SetDeletedFalseParams{UserID: uID, ShortURL: shortURL})
 }

@@ -42,7 +42,7 @@ func BasePath(baseURL string) string {
 	return basePath
 }
 
-func AddRandomString(ctx context.Context, repositoryorage repository.Repository, url repository.URL) (repository.ShortURL, error) {
+func AddRandomString(ctx context.Context, repo repository.Repository, url repository.URL) (repository.ShortURL, error) {
 	const retry = 6
 
 	lettrs := "abcdefghijklmnopqrrepositoryuvwxyzABCDEFGHIJKLMNOPQRrepositoryUVWXYZ0123456789"
@@ -52,7 +52,7 @@ func AddRandomString(ctx context.Context, repositoryorage repository.Repository,
 		for i := range b {
 			b[i] = lettrs[r.Intn(len(lettrs))]
 		}
-		err := repositoryorage.Add(ctx, repository.ShortURL(b), url)
+		err := repo.Add(ctx, repository.ShortURL(b), url)
 		if err == nil {
 			return repository.ShortURL(string(b)), nil
 		}

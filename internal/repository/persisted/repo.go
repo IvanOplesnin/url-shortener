@@ -9,16 +9,28 @@ import (
 )
 
 type Repo struct {
-	base  repo.Repository
-	s     repo.Seeder
-	snap  repo.Snapshoter
-	p     filestorage.Persister
-	rb    repo.Rollback
-	tx    repo.TxRunner
-	batch repo.BatchRepo
+	base         repo.Repository
+	s            repo.Seeder
+	snap         repo.Snapshoter
+	p            filestorage.Persister
+	rb           repo.Rollback
+	tx           repo.TxRunner
+	batch        repo.BatchRepo
+	userRepo     repo.UserRepo
+	deleterBatch repo.MarkUserDeleter
 }
 
-func New(base repo.Repository, s repo.Seeder, snap repo.Snapshoter, p filestorage.Persister, rb repo.Rollback, tx repo.TxRunner, batch repo.BatchRepo) (*Repo, error) {
+func New(
+	base repo.Repository,
+	s repo.Seeder,
+	snap repo.Snapshoter,
+	p filestorage.Persister,
+	rb repo.Rollback,
+	tx repo.TxRunner,
+	batch repo.BatchRepo,
+	userRepo repo.UserRepo,
+	deleterBatch repo.MarkUserDeleter,
+) (*Repo, error) {
 	records, err := p.Load()
 	if err != nil {
 		return nil, fmt.Errorf("persisted: load: %w", err)
@@ -28,13 +40,15 @@ func New(base repo.Repository, s repo.Seeder, snap repo.Snapshoter, p filestorag
 	}
 
 	return &Repo{
-		base:  base,
-		s:     s,
-		snap:  snap,
-		p:     p,
-		rb:    rb,
-		tx:    tx,
-		batch: batch,
+		base:         base,
+		s:            s,
+		snap:         snap,
+		p:            p,
+		rb:           rb,
+		tx:           tx,
+		batch:        batch,
+		userRepo:     userRepo,
+		deleterBatch: deleterBatch,
 	}, nil
 }
 
@@ -96,5 +110,45 @@ func (r *Repo) AddMany(ctx context.Context, records []repo.ArgAddMany) ([]repo.R
 		return res, nil
 	} else {
 		return nil, fmt.Errorf("no implement batch in repo")
+	}
+}
+
+func (r *Repo) AddUser(ctx context.Context) (int64, error) {
+	if r.userRepo != nil {
+		return r.userRepo.AddUser(ctx)
+	} else {
+		return 0, fmt.Errorf("no implement userRepo in repo")
+	}
+}
+
+func (r *Repo) GetUser(ctx context.Context, id int64) (int64, error) {
+	if r.userRepo != nil {
+		return r.userRepo.GetUser(ctx, id)
+	} else {
+		return 0, repo.ErrNotImlementedUserRepo
+	}
+}
+
+func (r *Repo) UserURLs(ctx context.Context) ([]repo.Record, error) {
+	if r.userRepo != nil {
+		return r.userRepo.UserURLs(ctx)
+	} else {
+		return nil, repo.ErrNotImlementedUserRepo
+	}
+}
+
+func (r *Repo) DeletedBatch(ctx context.Context, userID int64, shortUrls []string) error {
+	if r.deleterBatch != nil {
+		return r.deleterBatch.DeletedBatch(ctx, userID, shortUrls)
+	} else {
+		return fmt.Errorf("no implemented deleterBatch")
+	}
+}
+
+func (r *Repo) Undelete(ctx context.Context, shortURL repo.ShortURL) error {
+	if r.deleterBatch != nil {
+		return r.deleterBatch.Undelete(ctx, shortURL)
+	} else {
+		return fmt.Errorf("no implemented deleterBatch")
 	}
 }

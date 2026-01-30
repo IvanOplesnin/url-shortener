@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/IvanOplesnin/url-shortener/internal/repository"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addMany = `-- name: AddMany :many
@@ -17,25 +18,27 @@ WITH input AS (
   SELECT
     s.short_url,
     u.url,
-    c.created_at
-  FROM unnest($1::text[])        WITH ORDINALITY AS s(short_url, ord)
-  JOIN unnest($2::text[])             WITH ORDINALITY AS u(url, ord)
+    c.created_at,
+    $1::bigint AS user_id
+  FROM unnest($2::text[])        WITH ORDINALITY AS s(short_url, ord)
+  JOIN unnest($3::text[])             WITH ORDINALITY AS u(url, ord)
     USING (ord)
-  JOIN unnest($3::timestamptz[]) WITH ORDINALITY AS c(created_at, ord)
+  JOIN unnest($4::timestamptz[]) WITH ORDINALITY AS c(created_at, ord)
     USING (ord)
 ),
 inserted AS (
-  INSERT INTO alias_url (short_url, "url", created_at)
-  SELECT short_url, url, created_at
+  INSERT INTO alias_url (short_url, "url", created_at, user_id)
+  SELECT short_url, url, created_at, user_id
   FROM input
   ON CONFLICT DO NOTHING
-  RETURNING id, short_url, "url", created_at
+  RETURNING id, short_url, "url", created_at, user_id
 )
-SELECT id, short_url, "url", created_at
+SELECT id, short_url, "url", created_at, user_id
 FROM inserted
 `
 
 type AddManyParams struct {
+	UserID     pgtype.Int8
 	ShortUrls  []string
 	Urls       []string
 	CreatedAts []time.Time
@@ -46,10 +49,16 @@ type AddManyRow struct {
 	ShortURL  string
 	URL       string
 	CreatedAt time.Time
+	UserID    pgtype.Int8
 }
 
 func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow, error) {
-	rows, err := q.db.Query(ctx, addMany, arg.ShortUrls, arg.Urls, arg.CreatedAts)
+	rows, err := q.db.Query(ctx, addMany,
+		arg.UserID,
+		arg.ShortUrls,
+		arg.Urls,
+		arg.CreatedAts,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +71,7 @@ func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow,
 			&i.ShortURL,
 			&i.URL,
 			&i.CreatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -76,8 +86,14 @@ func (q *Queries) AddMany(ctx context.Context, arg AddManyParams) ([]AddManyRow,
 const getByURLs = `-- name: GetByURLs :many
 SELECT id, short_url, "url"
 FROM alias_url
-WHERE "url" = ANY($1::text[])
+WHERE "url" = ANY($2::text[])
+  AND user_id = $1
 `
+
+type GetByURLsParams struct {
+	UserID pgtype.Int8
+	Urls   []string
+}
 
 type GetByURLsRow struct {
 	ID       int64
@@ -85,8 +101,8 @@ type GetByURLsRow struct {
 	URL      repository.URL
 }
 
-func (q *Queries) GetByURLs(ctx context.Context, urls []string) ([]GetByURLsRow, error) {
-	rows, err := q.db.Query(ctx, getByURLs, urls)
+func (q *Queries) GetByURLs(ctx context.Context, arg GetByURLsParams) ([]GetByURLsRow, error) {
+	rows, err := q.db.Query(ctx, getByURLs, arg.UserID, arg.Urls)
 	if err != nil {
 		return nil, err
 	}

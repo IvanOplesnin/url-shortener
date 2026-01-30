@@ -72,6 +72,7 @@ type Config struct {
 	Logger   Logger
 	FilePath string `env:"FILE_STORAGE_PATH"`
 	DBDSN    string `env:"DATABASE_DSN"`
+	Secret   string `env:"SECRET_KEY"`
 }
 
 func (c *Config) String() string {
@@ -94,8 +95,14 @@ func GetConfig() (*Config, error) {
 		Port: 8080,
 	}
 	cfg.BaseURL = "http://localhost:8080/"
-	cfg.Logger.Level = "Info"
+	cfg.Logger.Level = "debug"
+	if level, ok := os.LookupEnv("LOG_LEVEL"); ok {
+		cfg.Logger.Level = level
+	}
 	cfg.Logger.Format = logger.Text
+	if format, ok := os.LookupEnv("LOG_FORMAT"); ok {
+		cfg.Logger.Format = logger.Formatter(format)
+	}
 	cfg.FilePath = "data.json"
 
 	flag.Var(&server, "a", serverFlagUsage)
@@ -104,6 +111,13 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&cfg.DBDSN, "d", cfg.DBDSN, "Databse DSN")
 
 	flag.Parse()
+
+	secret, ok := os.LookupEnv("SECRET_KEY")
+	if !ok {
+		cfg.Secret = ""
+	} else {
+		cfg.Secret = secret
+	}
 
 	if serverAddress, ok := os.LookupEnv(AddressKEY); ok {
 		if err := server.UnmarshalText([]byte(serverAddress)); err != nil {
